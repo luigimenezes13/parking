@@ -1,24 +1,24 @@
-import { AggregateRoot } from '../../../shared/aggregate-root.ts';
-import { UniqueIdentifier } from '../../../shared/value-objects/unique-identifier.ts';
-import { SpotCode } from '../../value-objects/spot-code.ts';
-import { SpotStatus } from '../../value-objects/spot-status.ts';
-import { spotOccupiedMapper } from './events/spot-occupied-mapper.ts';
-import { spotRegisteredMapper } from './events/spot-registered-mapper.ts';
-import { spotReleasedMapper } from './events/spot-released-mapper.ts';
-import { spotReservedMapper } from './events/spot-reserved-mapper.ts';
+import { AggregateRoot } from '@domain/shared/aggregate-root.ts';
+import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
+import { type SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
+import { SpotStatusVO } from '@domain/parking/value-objects/spot-status-vo.ts';
+import { spotOccupiedMapper } from '@domain/parking/aggregates/parking-spot/events/spot-occupied-mapper.ts';
+import { spotRegisteredMapper } from '@domain/parking/aggregates/parking-spot/events/spot-registered-mapper.ts';
+import { spotReleasedMapper } from '@domain/parking/aggregates/parking-spot/events/spot-released-mapper.ts';
+import { spotReservedMapper } from '@domain/parking/aggregates/parking-spot/events/spot-reserved-mapper.ts';
 
 interface ParkingSpotProperties {
-  code: SpotCode;
-  status: SpotStatus;
+  code: SpotCodeVO;
+  status: SpotStatusVO;
 }
 
 export interface ParkingSpotRegistration {
-  code: SpotCode;
+  code: SpotCodeVO;
 }
 
 export interface ParkingSpotRehydration {
-  code: SpotCode;
-  status: SpotStatus;
+  code: SpotCodeVO;
+  status: SpotStatusVO;
 }
 
 export class ParkingSpot extends AggregateRoot<ParkingSpotProperties> {
@@ -30,7 +30,7 @@ export class ParkingSpot extends AggregateRoot<ParkingSpotProperties> {
     const identifier = UniqueIdentifier.fromExisting(registration.code.value());
     const spot = new ParkingSpot(identifier, {
       code: registration.code,
-      status: SpotStatus.free(),
+      status: SpotStatusVO.free(),
     });
     spot.addDomainEvent(spotRegisteredMapper.toEvent(spot));
     return spot;
@@ -60,11 +60,11 @@ export class ParkingSpot extends AggregateRoot<ParkingSpotProperties> {
     return this.identifier;
   }
 
-  code(): SpotCode {
+  code(): SpotCodeVO {
     return this.properties.code;
   }
 
-  status(): SpotStatus {
+  status(): SpotStatusVO {
     return this.properties.status;
   }
 
@@ -80,7 +80,7 @@ export class ParkingSpot extends AggregateRoot<ParkingSpotProperties> {
     return this.properties.status.isReserved();
   }
 
-  hasCode(code: SpotCode): boolean {
+  hasCode(code: SpotCodeVO): boolean {
     return this.properties.code.equals(code);
   }
 }

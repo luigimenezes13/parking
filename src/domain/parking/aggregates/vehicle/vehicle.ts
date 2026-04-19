@@ -1,18 +1,18 @@
-import { AggregateRoot } from '../../../shared/aggregate-root.ts';
-import { UniqueIdentifier } from '../../../shared/value-objects/unique-identifier.ts';
-import { LicensePlate } from '../../value-objects/license-plate.ts';
-import { vehicleAppearanceUpdatedMapper } from './events/vehicle-appearance-updated-mapper.ts';
-import { vehicleRegisteredMapper } from './events/vehicle-registered-mapper.ts';
+import { AggregateRoot } from '@domain/shared/aggregate-root.ts';
+import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
+import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
+import { vehicleAppearanceUpdatedMapper } from '@domain/parking/aggregates/vehicle/events/vehicle-appearance-updated-mapper.ts';
+import { vehicleRegisteredMapper } from '@domain/parking/aggregates/vehicle/events/vehicle-registered-mapper.ts';
 
 interface VehicleProperties {
-  licensePlate: LicensePlate;
+  licensePlate: LicensePlateVO;
   model: string;
   brand: string;
   color: string;
 }
 
 export interface VehicleRegistration {
-  licensePlate: LicensePlate;
+  licensePlate: LicensePlateVO;
   model: string;
   brand: string;
   color: string;
@@ -52,7 +52,7 @@ export class Vehicle extends AggregateRoot<VehicleProperties> {
     return this.identifier;
   }
 
-  licensePlate(): LicensePlate {
+  licensePlate(): LicensePlateVO {
     return this.properties.licensePlate;
   }
 

@@ -1,6 +1,6 @@
-import { type DomainEventMapper } from '../../../../shared/events/domain-event-mapper.ts';
-import { type Vehicle } from '../vehicle.ts';
-import { type VehicleRegistered } from './vehicle-registered.ts';
+import { type DomainEventMapper } from '@domain/shared/events/domain-event-mapper.ts';
+import { type Vehicle } from '@domain/parking/aggregates/vehicle/vehicle.ts';
+import { type VehicleRegistered } from '@domain/parking/aggregates/vehicle/events/vehicle-registered.ts';
 
 export const vehicleRegisteredMapper: DomainEventMapper<Vehicle, VehicleRegistered> = {
   toEvent(vehicle: Vehicle): VehicleRegistered {
