@@ -1,4 +1,4 @@
-import { type DomainEvent } from '../../../../shared/events/domain-event.ts';
+import { type DomainEvent } from '@domain/shared/events/domain-event.ts';
 
 export interface SpotReleasedPayload {
   spotId: string;

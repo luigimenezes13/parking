@@ -1,4 +1,4 @@
-import { DomainError } from '../../shared/errors/domain-error.ts';
+import { DomainError } from '@domain/shared/errors/domain-error.ts';
 
 export class DuplicateActiveSessionForSpotError extends DomainError {
   constructor(spotCode: string) {

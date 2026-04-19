@@ -1,7 +1,7 @@
-import { type LicensePlate } from '../../value-objects/license-plate.ts';
-import { type Vehicle } from './vehicle.ts';
+import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
+import { type Vehicle } from '@domain/parking/aggregates/vehicle/vehicle.ts';
 
 export interface VehicleRepository {
   save(vehicle: Vehicle): Promise<void>;
-  findByLicensePlate(licensePlate: LicensePlate): Promise<Vehicle | null>;
+  findByLicensePlate(licensePlate: LicensePlateVO): Promise<Vehicle | null>;
 }

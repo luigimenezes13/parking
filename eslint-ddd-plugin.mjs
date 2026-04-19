@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 const layerRules = {
   domain: {
     forbidden: ['src/app/', 'src/infra/'],
@@ -27,7 +29,7 @@ const dddLayerRule = {
     },
   },
   create(context) {
-    const filename = context.getFilename();
+    const filename = context.filename;
     const layer = getLayer(filename);
 
     if (!layer || !layerRules[layer]) return {};
@@ -57,7 +59,6 @@ function resolveRelative(filename, source, forbidden) {
   if (!source.startsWith('.')) return false;
 
   try {
-    const path = await import('node:path');
     const dir = path.dirname(filename);
     const resolved = path.resolve(dir, source);
     return resolved.includes(forbidden.replace('src/', '/src/'));

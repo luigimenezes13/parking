@@ -1,8 +1,8 @@
-import { type DomainEventMapper } from '../../../../shared/events/domain-event-mapper.ts';
-import { type ParkingSession } from '../parking-session.ts';
-import { type VehicleEntered } from './vehicle-entered.ts';
+import { type DomainEventMapper } from '@domain/shared/events/domain-event-mapper.ts';
+import { type ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
+import { type VehicleEntered } from '@domain/parking/aggregates/parking-session/events/vehicle-entered.ts';
 
-export const vehicleEnteredMapper: DomainEventMapper<ParkingSession> = {
+export const vehicleEnteredMapper: DomainEventMapper<ParkingSession, VehicleEntered> = {
   toEvent(session: ParkingSession): VehicleEntered {
     return Object.freeze({
       eventName: 'parking.session.vehicle-entered',

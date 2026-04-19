@@ -1,4 +1,4 @@
-import { UniqueIdentifier } from './value-objects/unique-identifier.ts';
+import { type UniqueIdentifier } from './value-objects/unique-identifier.ts';
 
 export abstract class Entity<Properties> {
   protected readonly identifier: UniqueIdentifier;
