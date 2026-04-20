@@ -5,8 +5,8 @@ import { type UniqueIdentifier } from './value-objects/unique-identifier.ts';
 export abstract class AggregateRoot<Properties> extends Entity<Properties> {
   private domainEvents: DomainEvent[] = [];
 
-  protected constructor(identifier: UniqueIdentifier, properties: Properties) {
-    super(identifier, properties);
+  protected constructor(properties: Properties, identifier?: UniqueIdentifier) {
+    super(properties, identifier);
   }
 
   protected addDomainEvent(event: DomainEvent): void {

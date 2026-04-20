@@ -1,26 +1,24 @@
 import { type DomainEventMapper } from '@domain/shared/events/domain-event-mapper.ts';
 import { type ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
-import { type VehicleExited } from '@domain/parking/aggregates/parking-session/events/vehicle-exited.ts';
+import { type SessionFinished } from '@domain/parking/aggregates/parking-session/events/session-finished.ts';
 
-export interface VehicleExitedContext {
+export interface SessionFinishedContext {
   exitAt: Date;
 }
 
-export const vehicleExitedMapper: DomainEventMapper<
+export const sessionFinishedMapper: DomainEventMapper<
   ParkingSession,
-  VehicleExited,
-  VehicleExitedContext
+  SessionFinished,
+  SessionFinishedContext
 > = {
-  toEvent(session: ParkingSession, context: VehicleExitedContext): VehicleExited {
+  toEvent(session: ParkingSession, context: SessionFinishedContext): SessionFinished {
     return Object.freeze({
-      eventName: 'parking.session.vehicle-exited',
+      eventName: 'parking.session.finished',
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
         vehicleId: session.vehicle().id().value(),
-        licensePlate: session.vehicle().licensePlate().value(),
         spotId: session.spot().id().value(),
-        spotCode: session.spot().code().value(),
         entryAt: session.entryAt(),
         exitAt: new Date(context.exitAt.getTime()),
       }),
