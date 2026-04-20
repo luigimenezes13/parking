@@ -1,4 +1,4 @@
-import { type ParkingSessionRepository } from '@domain/parking/aggregates/parking-session/parking-session-repository.ts';
+import { type ParkingSessionRepository } from '@domain/parking/repositories/parking-session-repository.ts';
 import { DuplicateActiveSessionForSpotError } from '@domain/parking/errors/duplicate-active-session-for-spot.ts';
 import { DuplicateActiveSessionForVehicleError } from '@domain/parking/errors/duplicate-active-session-for-vehicle.ts';
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';

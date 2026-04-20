@@ -1,11 +1,11 @@
-import { type UniqueIdentifier } from './value-objects/unique-identifier.ts';
+import { UniqueIdentifier } from './value-objects/unique-identifier.ts';
 
 export abstract class Entity<Properties> {
   protected readonly identifier: UniqueIdentifier;
   protected readonly properties: Properties;
 
-  protected constructor(identifier: UniqueIdentifier, properties: Properties) {
-    this.identifier = identifier;
+  protected constructor(properties: Properties, identifier?: UniqueIdentifier) {
+    this.identifier = identifier ?? UniqueIdentifier.create();
     this.properties = properties;
   }
 
