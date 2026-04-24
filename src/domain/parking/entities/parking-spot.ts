@@ -4,6 +4,7 @@ import { type SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotStatusVO } from '@domain/parking/value-objects/spot-status-vo.ts';
 
 interface ParkingSpotProperties {
+  parkingLotId: UniqueIdentifier;
   code: SpotCodeVO;
   floor: number;
   isCovered: boolean;
@@ -11,6 +12,7 @@ interface ParkingSpotProperties {
 }
 
 export interface ParkingSpotRegistration {
+  parkingLotId: UniqueIdentifier;
   code: SpotCodeVO;
   floor: number;
   isCovered: boolean;
@@ -18,6 +20,7 @@ export interface ParkingSpotRegistration {
 
 export interface ParkingSpotRehydration {
   identifier: UniqueIdentifier;
+  parkingLotId: UniqueIdentifier;
   code: SpotCodeVO;
   floor: number;
   isCovered: boolean;
@@ -31,6 +34,7 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
 
   static register(registration: ParkingSpotRegistration): ParkingSpot {
     return new ParkingSpot({
+      parkingLotId: registration.parkingLotId,
       code: registration.code,
       floor: registration.floor,
       isCovered: registration.isCovered,
@@ -41,6 +45,7 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
   static rehydrate(rehydration: ParkingSpotRehydration): ParkingSpot {
     return new ParkingSpot(
       {
+        parkingLotId: rehydration.parkingLotId,
         code: rehydration.code,
         floor: rehydration.floor,
         isCovered: rehydration.isCovered,
@@ -58,8 +63,16 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
     this.properties.status = this.properties.status.release(this.properties.code.value());
   }
 
+  belongsTo(parkingLotId: UniqueIdentifier): boolean {
+    return this.properties.parkingLotId.equals(parkingLotId);
+  }
+
   id(): UniqueIdentifier {
     return this.identifier;
+  }
+
+  parkingLotId(): UniqueIdentifier {
+    return this.properties.parkingLotId;
   }
 
   code(): SpotCodeVO {
