@@ -9,16 +9,12 @@ export interface DriverProperties {
 }
 
 export class Driver extends Entity<DriverProperties> {
-  private constructor(properties: DriverProperties, identifier?: UniqueIdentifier) {
+  constructor(properties: DriverProperties, identifier?: UniqueIdentifier) {
     super(properties, identifier);
   }
 
   static register(properties: DriverProperties): Driver {
     return new Driver(properties);
-  }
-
-  static rehydrate(identifier: UniqueIdentifier, properties: DriverProperties): Driver {
-    return new Driver(properties, identifier);
   }
 
   id(): UniqueIdentifier {

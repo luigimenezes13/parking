@@ -20,7 +20,7 @@ export interface ParkingSessionProperties {
 }
 
 export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
-  private constructor(properties: ParkingSessionProperties, identifier?: UniqueIdentifier) {
+  constructor(properties: ParkingSessionProperties, identifier?: UniqueIdentifier) {
     super(properties, identifier);
   }
 
@@ -39,13 +39,6 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     session.addDomainEvent(spotOccupiedMapper.toEvent(session));
 
     return session;
-  }
-
-  static rehydrate(
-    identifier: UniqueIdentifier,
-    properties: ParkingSessionProperties,
-  ): ParkingSession {
-    return new ParkingSession(properties, identifier);
   }
 
   finish(exitAt: Date): void {

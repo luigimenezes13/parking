@@ -11,16 +11,12 @@ export interface VehicleProperties {
 }
 
 export class Vehicle extends Entity<VehicleProperties> {
-  private constructor(properties: VehicleProperties, identifier?: UniqueIdentifier) {
+  constructor(properties: VehicleProperties, identifier?: UniqueIdentifier) {
     super(properties, identifier);
   }
 
   static register(properties: VehicleProperties): Vehicle {
     return new Vehicle(properties);
-  }
-
-  static rehydrate(identifier: UniqueIdentifier, properties: VehicleProperties): Vehicle {
-    return new Vehicle(properties, identifier);
   }
 
   transferOwnershipTo(newDriverId: UniqueIdentifier): void {
