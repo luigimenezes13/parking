@@ -12,7 +12,7 @@ export const parkingSessionSchema = z
     status: sessionStatusSchema,
   })
   .refine(
-    (session) => session.status === 'ACTIVE' ? session.exitAt === null : session.exitAt !== null,
+    (session) => (session.status === 'ACTIVE' ? session.exitAt === null : session.exitAt !== null),
     { message: 'exitAt must be set when status is FINISHED and null when ACTIVE' },
   );
 

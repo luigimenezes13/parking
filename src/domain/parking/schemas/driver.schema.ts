@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const driverSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   cnh: z.string().min(1).max(11),
   name: z.string().min(1),
-  email: z.string().email(),
+  email: z.email(),
   phone: z.string().min(1),
 });
 
