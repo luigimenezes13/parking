@@ -3,6 +3,7 @@ import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-ident
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 
 interface VehicleProperties {
+  driverId: UniqueIdentifier;
   licensePlate: LicensePlateVO;
   brand: string | null;
   model: string;
@@ -10,6 +11,7 @@ interface VehicleProperties {
 }
 
 export interface VehicleRegistration {
+  driverId: UniqueIdentifier;
   licensePlate: LicensePlateVO;
   brand?: string | null;
   model: string;
@@ -33,6 +35,7 @@ export class Vehicle extends Entity<VehicleProperties> {
 
   static register(registration: VehicleRegistration): Vehicle {
     return new Vehicle({
+      driverId: registration.driverId,
       licensePlate: registration.licensePlate,
       brand: registration.brand ?? null,
       model: registration.model,
@@ -43,6 +46,7 @@ export class Vehicle extends Entity<VehicleProperties> {
   static rehydrate(rehydration: VehicleRehydration): Vehicle {
     return new Vehicle(
       {
+        driverId: rehydration.driverId,
         licensePlate: rehydration.licensePlate,
         brand: rehydration.brand ?? null,
         model: rehydration.model,
@@ -52,14 +56,26 @@ export class Vehicle extends Entity<VehicleProperties> {
     );
   }
 
+  transferOwnershipTo(newDriverId: UniqueIdentifier): void {
+    this.properties.driverId = newDriverId;
+  }
+
   updateAppearance(appearance: VehicleAppearance): void {
     this.properties.brand = appearance.brand ?? null;
     this.properties.model = appearance.model;
     this.properties.color = appearance.color;
   }
 
+  belongsTo(driverId: UniqueIdentifier): boolean {
+    return this.properties.driverId.equals(driverId);
+  }
+
   id(): UniqueIdentifier {
     return this.identifier;
+  }
+
+  driverId(): UniqueIdentifier {
+    return this.properties.driverId;
   }
 
   licensePlate(): LicensePlateVO {
