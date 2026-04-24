@@ -1,20 +1,10 @@
 import { Entity } from '@domain/shared/entity.ts';
 import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 
-interface ParkingLotProperties {
+export interface ParkingLotProperties {
   name: string;
   address: string;
   totalCapacity: number;
-}
-
-export interface ParkingLotRegistration {
-  name: string;
-  address: string;
-  totalCapacity: number;
-}
-
-export interface ParkingLotRehydration extends ParkingLotRegistration {
-  identifier: UniqueIdentifier;
 }
 
 export class ParkingLot extends Entity<ParkingLotProperties> {
@@ -22,23 +12,12 @@ export class ParkingLot extends Entity<ParkingLotProperties> {
     super(properties, identifier);
   }
 
-  static register(registration: ParkingLotRegistration): ParkingLot {
-    return new ParkingLot({
-      name: registration.name,
-      address: registration.address,
-      totalCapacity: registration.totalCapacity,
-    });
+  static register(properties: ParkingLotProperties): ParkingLot {
+    return new ParkingLot(properties);
   }
 
-  static rehydrate(rehydration: ParkingLotRehydration): ParkingLot {
-    return new ParkingLot(
-      {
-        name: rehydration.name,
-        address: rehydration.address,
-        totalCapacity: rehydration.totalCapacity,
-      },
-      rehydration.identifier,
-    );
+  static rehydrate(identifier: UniqueIdentifier, properties: ParkingLotProperties): ParkingLot {
+    return new ParkingLot(properties, identifier);
   }
 
   id(): UniqueIdentifier {
