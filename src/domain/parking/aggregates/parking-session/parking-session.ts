@@ -12,21 +12,7 @@ import { spotReleasedMapper } from '@domain/parking/aggregates/parking-session/e
 import { vehicleEnteredMapper } from '@domain/parking/aggregates/parking-session/events/vehicle-entered-mapper.ts';
 import { vehicleExitedMapper } from '@domain/parking/aggregates/parking-session/events/vehicle-exited-mapper.ts';
 
-interface ParkingSessionProperties {
-  vehicle: Vehicle;
-  spot: ParkingSpot;
-  status: SessionStatusVO;
-  period: ParkingPeriodVO;
-}
-
-export interface ParkingSessionOpening {
-  vehicle: Vehicle;
-  spot: ParkingSpot;
-  entryAt: Date;
-}
-
-export interface ParkingSessionRehydration {
-  identifier: UniqueIdentifier;
+export interface ParkingSessionProperties {
   vehicle: Vehicle;
   spot: ParkingSpot;
   status: SessionStatusVO;
@@ -38,7 +24,7 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     super(properties, identifier);
   }
 
-  static open(opening: ParkingSessionOpening): ParkingSession {
+  static open(opening: { vehicle: Vehicle; spot: ParkingSpot; entryAt: Date }): ParkingSession {
     opening.spot.occupyBySession();
 
     const session = new ParkingSession({
@@ -55,16 +41,11 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     return session;
   }
 
-  static rehydrate(rehydration: ParkingSessionRehydration): ParkingSession {
-    return new ParkingSession(
-      {
-        vehicle: rehydration.vehicle,
-        spot: rehydration.spot,
-        status: rehydration.status,
-        period: rehydration.period,
-      },
-      rehydration.identifier,
-    );
+  static rehydrate(
+    identifier: UniqueIdentifier,
+    properties: ParkingSessionProperties,
+  ): ParkingSession {
+    return new ParkingSession(properties, identifier);
   }
 
   finish(exitAt: Date): void {

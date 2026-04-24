@@ -3,23 +3,7 @@ import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-ident
 import { type SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotStatusVO } from '@domain/parking/value-objects/spot-status-vo.ts';
 
-interface ParkingSpotProperties {
-  parkingLotId: UniqueIdentifier;
-  code: SpotCodeVO;
-  floor: number;
-  isCovered: boolean;
-  status: SpotStatusVO;
-}
-
-export interface ParkingSpotRegistration {
-  parkingLotId: UniqueIdentifier;
-  code: SpotCodeVO;
-  floor: number;
-  isCovered: boolean;
-}
-
-export interface ParkingSpotRehydration {
-  identifier: UniqueIdentifier;
+export interface ParkingSpotProperties {
   parkingLotId: UniqueIdentifier;
   code: SpotCodeVO;
   floor: number;
@@ -32,27 +16,15 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
     super(properties, identifier);
   }
 
-  static register(registration: ParkingSpotRegistration): ParkingSpot {
+  static register(properties: Omit<ParkingSpotProperties, 'status'>): ParkingSpot {
     return new ParkingSpot({
-      parkingLotId: registration.parkingLotId,
-      code: registration.code,
-      floor: registration.floor,
-      isCovered: registration.isCovered,
+      ...properties,
       status: SpotStatusVO.free(),
     });
   }
 
-  static rehydrate(rehydration: ParkingSpotRehydration): ParkingSpot {
-    return new ParkingSpot(
-      {
-        parkingLotId: rehydration.parkingLotId,
-        code: rehydration.code,
-        floor: rehydration.floor,
-        isCovered: rehydration.isCovered,
-        status: rehydration.status,
-      },
-      rehydration.identifier,
-    );
+  static rehydrate(identifier: UniqueIdentifier, properties: ParkingSpotProperties): ParkingSpot {
+    return new ParkingSpot(properties, identifier);
   }
 
   occupyBySession(): void {
