@@ -12,7 +12,7 @@ export interface ParkingSpotProperties {
 }
 
 export class ParkingSpot extends Entity<ParkingSpotProperties> {
-  private constructor(properties: ParkingSpotProperties, identifier?: UniqueIdentifier) {
+  constructor(properties: ParkingSpotProperties, identifier?: UniqueIdentifier) {
     super(properties, identifier);
   }
 
@@ -21,10 +21,6 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
       ...properties,
       status: SpotStatusVO.free(),
     });
-  }
-
-  static rehydrate(identifier: UniqueIdentifier, properties: ParkingSpotProperties): ParkingSpot {
-    return new ParkingSpot(properties, identifier);
   }
 
   occupyBySession(): void {

@@ -8,16 +8,12 @@ export interface ParkingLotProperties {
 }
 
 export class ParkingLot extends Entity<ParkingLotProperties> {
-  private constructor(properties: ParkingLotProperties, identifier?: UniqueIdentifier) {
+  constructor(properties: ParkingLotProperties, identifier?: UniqueIdentifier) {
     super(properties, identifier);
   }
 
   static register(properties: ParkingLotProperties): ParkingLot {
     return new ParkingLot(properties);
-  }
-
-  static rehydrate(identifier: UniqueIdentifier, properties: ParkingLotProperties): ParkingLot {
-    return new ParkingLot(properties, identifier);
   }
 
   id(): UniqueIdentifier {
