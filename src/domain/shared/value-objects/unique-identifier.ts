@@ -2,17 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import { ValueObject } from '../value-object.ts';
 
-interface UniqueIdentifierProperties {
-  value: string;
-}
-
-export class UniqueIdentifier extends ValueObject<UniqueIdentifierProperties> {
-  private constructor(properties: UniqueIdentifierProperties) {
-    super(properties);
+export class UniqueIdentifier extends ValueObject<string> {
+  private constructor(value: string) {
+    super(value);
   }
 
   static create(): UniqueIdentifier {
-    return new UniqueIdentifier({ value: randomUUID() });
+    return new UniqueIdentifier(randomUUID());
   }
 
   static fromExisting(value: string): UniqueIdentifier {
@@ -20,10 +16,10 @@ export class UniqueIdentifier extends ValueObject<UniqueIdentifierProperties> {
       throw new Error('UniqueIdentifier cannot be empty');
     }
 
-    return new UniqueIdentifier({ value });
+    return new UniqueIdentifier(value);
   }
 
   value(): string {
-    return this.properties.value;
+    return this.properties;
   }
 }
