@@ -4,6 +4,7 @@ export interface SpotReleasedPayload {
   sessionId: string;
   spotId: string;
   spotCode: string;
+  releasedAt: Date;
 }
 
 export interface SpotReleased extends DomainEvent<SpotReleasedPayload> {

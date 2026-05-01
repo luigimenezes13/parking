@@ -17,8 +17,7 @@ export const sessionFinishedMapper: DomainEventMapper<
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        spotId: session.spot().id().value(),
+        licensePlate: session.licensePlate().value(),
         entryAt: session.entryAt(),
         exitAt: new Date(context.exitAt.getTime()),
       }),

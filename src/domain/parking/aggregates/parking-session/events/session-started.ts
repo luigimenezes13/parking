@@ -2,8 +2,7 @@ import { type DomainEvent } from '@domain/shared/events/domain-event.ts';
 
 export interface SessionStartedPayload {
   sessionId: string;
-  vehicleId: string;
-  spotId: string;
+  licensePlate: string;
   entryAt: Date;
 }
 
