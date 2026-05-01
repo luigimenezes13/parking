@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit",
     "studio": "prisma studio --schema ./src/infra/database/prisma/schema.prisma",
     "generate": "prisma generate --schema ./src/infra/database/prisma/schema.prisma",
+    "seed": "tsx --env-file=.env ./src/infra/database/seed.ts",
     "pr": "npm run test && npm run lint:fix && npm run typecheck && npm run build"
   },
   "prisma": {
