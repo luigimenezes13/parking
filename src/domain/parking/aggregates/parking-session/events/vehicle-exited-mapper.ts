@@ -17,11 +17,7 @@ export const vehicleExitedMapper: DomainEventMapper<
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        licensePlate: session.vehicle().licensePlate().value(),
-        spotId: session.spot().id().value(),
-        spotCode: session.spot().code().value(),
-        entryAt: session.entryAt(),
+        licensePlate: session.licensePlate().value(),
         exitAt: new Date(context.exitAt.getTime()),
       }),
     });

@@ -9,10 +9,7 @@ export const vehicleEnteredMapper: DomainEventMapper<ParkingSession, VehicleEnte
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        licensePlate: session.vehicle().licensePlate().value(),
-        spotId: session.spot().id().value(),
-        spotCode: session.spot().code().value(),
+        licensePlate: session.licensePlate().value(),
         entryAt: session.entryAt(),
       }),
     });
