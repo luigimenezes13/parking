@@ -42,6 +42,11 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', '*.mjs'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '*.mjs',
+      'src/infra/database/types/**',
+    ],
   },
 ];
