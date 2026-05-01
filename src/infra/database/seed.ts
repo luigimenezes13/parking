@@ -2,8 +2,8 @@ import { database } from '@infra/database/Connection.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 
 const SPOT_DEFINITIONS: ReadonlyArray<{ id: string; code: string }> = [
-  { id: '00000000-0000-0000-0000-0000000000a1', code: 'A' },
-  { id: '00000000-0000-0000-0000-0000000000b1', code: 'B' },
+  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', code: 'A' },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', code: 'B' },
 ];
 
 async function seed(): Promise<void> {
@@ -17,9 +17,9 @@ async function seed(): Promise<void> {
       id: parkingLotId,
       name: 'Parking Lot Demo',
       address: 'Rua Demo, 123',
-      totalCapacity: 50,
-      createdAt: now,
-      updatedAt: now,
+      total_capacity: 50,
+      created_at: now,
+      updated_at: now,
     })
     .onConflict((conflict) => conflict.column('id').doNothing())
     .execute();
@@ -29,15 +29,15 @@ async function seed(): Promise<void> {
       .insertInto('parking_spots')
       .values({
         id: spot.id,
-        parkingLotId,
+        parking_lot_id: parkingLotId,
         code: spot.code,
         floor: 1,
-        isCovered: true,
+        is_covered: true,
         status: 'FREE',
-        createdAt: now,
-        updatedAt: now,
+        created_at: now,
+        updated_at: now,
       })
-      .onConflict((conflict) => conflict.columns(['parkingLotId', 'code']).doNothing())
+      .onConflict((conflict) => conflict.columns(['parking_lot_id', 'code']).doNothing())
       .execute();
   }
 
