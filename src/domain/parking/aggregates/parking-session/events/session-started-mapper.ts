@@ -9,6 +9,7 @@ export const sessionStartedMapper: DomainEventMapper<ParkingSession, SessionStar
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
+        vehicleId: session.vehicle().id().value(),
         licensePlate: session.licensePlate().value(),
         entryAt: session.entryAt(),
       }),

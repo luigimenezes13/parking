@@ -3,11 +3,18 @@ import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-ident
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 
 export interface VehicleProperties {
-  driverId: UniqueIdentifier;
+  driverId: UniqueIdentifier | null;
+  parkingLotId: UniqueIdentifier;
   licensePlate: LicensePlateVO;
   brand: string | null;
-  model: string;
-  color: string;
+  model: string | null;
+  color: string | null;
+}
+
+export interface VehicleAppearance {
+  brand: string | null;
+  model: string | null;
+  color: string | null;
 }
 
 export class Vehicle extends Entity<VehicleProperties> {
@@ -19,26 +26,55 @@ export class Vehicle extends Entity<VehicleProperties> {
     return new Vehicle(properties);
   }
 
+  static registerAnonymous(properties: {
+    parkingLotId: UniqueIdentifier;
+    licensePlate: LicensePlateVO;
+    brand?: string | null;
+    model?: string | null;
+    color?: string | null;
+  }): Vehicle {
+    return new Vehicle({
+      driverId: null,
+      parkingLotId: properties.parkingLotId,
+      licensePlate: properties.licensePlate,
+      brand: properties.brand ?? null,
+      model: properties.model ?? null,
+      color: properties.color ?? null,
+    });
+  }
+
   transferOwnershipTo(newDriverId: UniqueIdentifier): void {
     this.properties.driverId = newDriverId;
   }
 
-  updateAppearance(appearance: { brand: string | null; model: string; color: string }): void {
+  updateAppearance(appearance: VehicleAppearance): void {
     this.properties.brand = appearance.brand;
     this.properties.model = appearance.model;
     this.properties.color = appearance.color;
   }
 
   belongsTo(driverId: UniqueIdentifier): boolean {
+    if (this.properties.driverId === null) {
+      return false;
+    }
+
     return this.properties.driverId.equals(driverId);
+  }
+
+  hasDriver(): boolean {
+    return this.properties.driverId !== null;
   }
 
   id(): UniqueIdentifier {
     return this.identifier;
   }
 
-  driverId(): UniqueIdentifier {
+  driverId(): UniqueIdentifier | null {
     return this.properties.driverId;
+  }
+
+  parkingLotId(): UniqueIdentifier {
+    return this.properties.parkingLotId;
   }
 
   licensePlate(): LicensePlateVO {
@@ -49,11 +85,11 @@ export class Vehicle extends Entity<VehicleProperties> {
     return this.properties.brand;
   }
 
-  model(): string {
+  model(): string | null {
     return this.properties.model;
   }
 
-  color(): string {
+  color(): string | null {
     return this.properties.color;
   }
 }

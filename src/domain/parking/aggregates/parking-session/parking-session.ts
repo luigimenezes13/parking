@@ -1,8 +1,12 @@
 import { AggregateRoot } from '@domain/shared/aggregate-root.ts';
 import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { SessionAlreadyFinishedError } from '@domain/parking/errors/session-already-finished.ts';
+import { SessionNotActiveError } from '@domain/parking/errors/session-not-active.ts';
+import { SessionAlreadyHasSpotError } from '@domain/parking/errors/session-already-has-spot.ts';
+import { SessionWithoutSpotError } from '@domain/parking/errors/session-without-spot.ts';
 import { type Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { type ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
+import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { ParkingPeriodVO } from '@domain/parking/value-objects/parking-period-vo.ts';
 import { SessionStatusVO } from '@domain/parking/value-objects/session-status-vo.ts';
 import { sessionFinishedMapper } from '@domain/parking/aggregates/parking-session/events/session-finished-mapper.ts';
@@ -14,9 +18,10 @@ import { vehicleExitedMapper } from '@domain/parking/aggregates/parking-session/
 
 export interface ParkingSessionProperties {
   vehicle: Vehicle;
-  spot: ParkingSpot;
+  spot: ParkingSpot | null;
   status: SessionStatusVO;
   period: ParkingPeriodVO;
+  spotReleasedAt: Date | null;
 }
 
 export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
@@ -24,35 +29,63 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     super(properties, identifier);
   }
 
-  static open(opening: { vehicle: Vehicle; spot: ParkingSpot; entryAt: Date }): ParkingSession {
-    opening.spot.occupyBySession();
-
+  static enter(opening: { vehicle: Vehicle; entryAt: Date }): ParkingSession {
     const session = new ParkingSession({
       vehicle: opening.vehicle,
-      spot: opening.spot,
+      spot: null,
       status: SessionStatusVO.active(),
       period: ParkingPeriodVO.startedAt(opening.entryAt),
+      spotReleasedAt: null,
     });
 
     session.addDomainEvent(vehicleEnteredMapper.toEvent(session));
     session.addDomainEvent(sessionStartedMapper.toEvent(session));
-    session.addDomainEvent(spotOccupiedMapper.toEvent(session));
 
     return session;
   }
 
-  finish(exitAt: Date): void {
+  assignSpot(assignment: { spot: ParkingSpot; occupiedAt: Date }): void {
+    this.ensureActive();
+
+    if (this.properties.spot !== null) {
+      throw new SessionAlreadyHasSpotError(this.identifier.value());
+    }
+
+    assignment.spot.occupyBySession();
+    this.properties.spot = assignment.spot;
+
+    this.addDomainEvent(spotOccupiedMapper.toEvent(this, { occupiedAt: assignment.occupiedAt }));
+  }
+
+  releaseSpot(release: { releasedAt: Date }): void {
+    this.ensureActive();
+
+    if (this.properties.spot === null) {
+      throw new SessionWithoutSpotError(this.identifier.value());
+    }
+
+    this.properties.spot.releaseBySession();
+    this.properties.spotReleasedAt = new Date(release.releasedAt.getTime());
+
+    this.addDomainEvent(spotReleasedMapper.toEvent(this, { releasedAt: release.releasedAt }));
+  }
+
+  finish(closure: { exitAt: Date }): void {
     if (this.properties.status.isFinished()) {
       throw new SessionAlreadyFinishedError(this.identifier.value());
     }
 
-    this.properties.spot.releaseBySession();
-    this.properties.period = this.properties.period.closeAt(exitAt);
+    if (this.properties.spot !== null && this.properties.spot.isOccupied()) {
+      this.properties.spot.releaseBySession();
+      this.properties.spotReleasedAt = new Date(closure.exitAt.getTime());
+      this.addDomainEvent(spotReleasedMapper.toEvent(this, { releasedAt: closure.exitAt }));
+    }
+
+    this.properties.period = this.properties.period.closeAt(closure.exitAt);
     this.properties.status = this.properties.status.finish();
 
-    this.addDomainEvent(vehicleExitedMapper.toEvent(this, { exitAt }));
-    this.addDomainEvent(sessionFinishedMapper.toEvent(this, { exitAt }));
-    this.addDomainEvent(spotReleasedMapper.toEvent(this));
+    this.addDomainEvent(vehicleExitedMapper.toEvent(this, { exitAt: closure.exitAt }));
+    this.addDomainEvent(sessionFinishedMapper.toEvent(this, { exitAt: closure.exitAt }));
   }
 
   id(): UniqueIdentifier {
@@ -63,7 +96,11 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     return this.properties.vehicle;
   }
 
-  spot(): ParkingSpot {
+  licensePlate(): LicensePlateVO {
+    return this.properties.vehicle.licensePlate();
+  }
+
+  spot(): ParkingSpot | null {
     return this.properties.spot;
   }
 
@@ -83,11 +120,31 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     return this.properties.period.exitAt();
   }
 
+  spotReleasedAt(): Date | null {
+    return this.properties.spotReleasedAt
+      ? new Date(this.properties.spotReleasedAt.getTime())
+      : null;
+  }
+
   isActive(): boolean {
     return this.properties.status.isActive();
   }
 
   isFinished(): boolean {
     return this.properties.status.isFinished();
+  }
+
+  hasSpotAssigned(): boolean {
+    return this.properties.spot !== null;
+  }
+
+  isPendingSpot(): boolean {
+    return this.properties.spot === null && this.properties.status.isActive();
+  }
+
+  private ensureActive(): void {
+    if (!this.properties.status.isActive()) {
+      throw new SessionNotActiveError(this.identifier.value());
+    }
   }
 }
