@@ -20,8 +20,8 @@ export function buildRecognitionTopology(exchangeName: string): RecognitionTopol
     dlxExchange,
     queues: RECOGNITION_EVENT_TYPES.map((eventType) => ({
       routingKey: eventType,
-      queue: `q.recognition.${eventType}`,
-      deadLetterQueue: `q.recognition.${eventType}.dlq`,
+      queue: `${exchangeName}.q.${eventType}`,
+      deadLetterQueue: `${exchangeName}.q.${eventType}.dlq`,
     })),
   };
 }

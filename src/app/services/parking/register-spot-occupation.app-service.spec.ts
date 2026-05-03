@@ -78,12 +78,11 @@ describe('RegisterSpotOccupationAppService', () => {
 
     const vehicle = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('XYZ9K88'));
     expect(vehicle).not.toBeNull();
-
-    const session = await setup.sessions
-      .findById(vehicle ? vehicle.id() : (undefined as never))
-      .catch(() => null);
-    // Session lookup by id requires the session id from result
     expect(result.sessionId).toBeTruthy();
+
+    const stored = await setup.sessions.findActiveByPlate(LicensePlateVO.from('XYZ9K88'));
+    expect(stored?.id().value()).toBe(result.sessionId);
+    expect(stored?.spot()?.code().value()).toBe('A');
   });
 
   it('should publish a SpotOccupied domain event', async () => {
