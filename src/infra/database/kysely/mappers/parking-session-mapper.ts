@@ -16,7 +16,10 @@ import {
 } from '@infra/database/kysely/mappers/vehicle-mapper.ts';
 import { TYPES } from '@app/dto/types.ts';
 
-export type SelectableParkingSession = Selectable<ParkingSessionRow>;
+export type SelectableParkingSession = Pick<
+  Selectable<ParkingSessionRow>,
+  'id' | 'vehicle_id' | 'spot_id' | 'status' | 'entry_at' | 'spot_released_at' | 'exit_at'
+>;
 
 export type InsertableParkingSessionRow = {
   id: string;

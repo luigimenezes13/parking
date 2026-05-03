@@ -6,7 +6,10 @@ import { Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { type Vehicle as VehicleRow } from '@infra/database/types/Types.ts';
 
-export type SelectableVehicle = Selectable<VehicleRow>;
+export type SelectableVehicle = Pick<
+  Selectable<VehicleRow>,
+  'id' | 'driver_id' | 'parking_lot_id' | 'license_plate' | 'brand' | 'model' | 'color'
+>;
 
 export type InsertableVehicleRow = {
   id: string;
