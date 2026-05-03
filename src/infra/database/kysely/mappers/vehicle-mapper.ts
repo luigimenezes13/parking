@@ -1,9 +1,12 @@
 import { injectable } from 'inversify';
+import { type Selectable } from 'kysely';
 
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { type Vehicle as VehicleRow } from '@infra/database/types/Types.ts';
+
+export type SelectableVehicle = Selectable<VehicleRow>;
 
 export type InsertableVehicleRow = {
   id: string;
@@ -19,7 +22,7 @@ export type InsertableVehicleRow = {
 
 @injectable()
 export class VehicleMapper {
-  toDomain(row: Pick<VehicleRow, 'id' | 'driver_id' | 'parking_lot_id' | 'license_plate' | 'brand' | 'model' | 'color'>): Vehicle {
+  toDomain(row: SelectableVehicle): Vehicle {
     return new Vehicle(
       {
         driverId: row.driver_id ? UniqueIdentifier.fromExisting(row.driver_id) : null,

@@ -1,10 +1,13 @@
 import { injectable } from 'inversify';
+import { type Selectable } from 'kysely';
 
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotStatusVO } from '@domain/parking/value-objects/spot-status-vo.ts';
 import { type ParkingSpot as ParkingSpotRow } from '@infra/database/types/Types.ts';
+
+export type SelectableParkingSpot = Selectable<ParkingSpotRow>;
 
 export type InsertableParkingSpotRow = {
   id: string;
@@ -19,7 +22,7 @@ export type InsertableParkingSpotRow = {
 
 @injectable()
 export class ParkingSpotMapper {
-  toDomain(row: Pick<ParkingSpotRow, 'id' | 'parking_lot_id' | 'code' | 'floor' | 'is_covered' | 'status'>): ParkingSpot {
+  toDomain(row: SelectableParkingSpot): ParkingSpot {
     return new ParkingSpot(
       {
         parkingLotId: UniqueIdentifier.fromExisting(row.parking_lot_id),
