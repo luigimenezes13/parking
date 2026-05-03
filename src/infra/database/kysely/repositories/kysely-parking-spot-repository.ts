@@ -6,7 +6,7 @@ import { type ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { type SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { type ParkingSpotRepository } from '@domain/parking/repositories/parking-spot-repository.ts';
 import { type Database } from '@infra/database/Connection.ts';
-import { ParkingSpotMapper } from '@infra/database/kysely/mappers/parking-spot-mapper.ts';
+import { type ParkingSpotMapper } from '@infra/database/kysely/mappers/parking-spot-mapper.ts';
 import { TYPES } from '@app/dto/types.ts';
 
 @injectable()

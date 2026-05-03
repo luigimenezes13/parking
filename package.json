@@ -10,7 +10,7 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --coverage.enabled=true --ui",
-    "test:integration": "vitest --config vitest.config.integration.ts --env-file=.env --run",
+    "test:integration": "vitest --config vitest.config.integration.ts --run",
     "test:all": "npm run test && npm run test:integration",
     "test:di": "tsx src/infra/di/test-di.ts",
     "migrate": "npx prisma migrate dev --schema ./src/infra/database/prisma/schema.prisma",

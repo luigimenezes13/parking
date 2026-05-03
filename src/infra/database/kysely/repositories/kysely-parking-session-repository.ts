@@ -7,10 +7,10 @@ import { type ParkingSession } from '@domain/parking/aggregates/parking-session/
 import { type ParkingSessionRepository } from '@domain/parking/repositories/parking-session-repository.ts';
 import { type Database } from '@infra/database/Connection.ts';
 import {
-  ParkingSessionMapper,
+  type ParkingSessionMapper,
   type ParkingSessionHydrationRow,
 } from '@infra/database/kysely/mappers/parking-session-mapper.ts';
-import { ParkingSpotMapper } from '@infra/database/kysely/mappers/parking-spot-mapper.ts';
+import { type ParkingSpotMapper } from '@infra/database/kysely/mappers/parking-spot-mapper.ts';
 import { TYPES } from '@app/dto/types.ts';
 
 @injectable()
@@ -75,9 +75,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
 
   async findActiveBySpot(spotId: UniqueIdentifier): Promise<ParkingSession | null> {
     return this.queryHydratedSession((trx) =>
-      this.baseSelect(trx)
-        .where('s.status', '=', 'ACTIVE')
-        .where('s.spot_id', '=', spotId.value()),
+      this.baseSelect(trx).where('s.status', '=', 'ACTIVE').where('s.spot_id', '=', spotId.value()),
     );
   }
 

@@ -6,12 +6,9 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['**/*.integration.spec.ts'],
+    setupFiles: ['./src/infra/database/__tests__/load-env.ts'],
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    fileParallelism: false,
     sequence: {
       concurrent: false,
     },
