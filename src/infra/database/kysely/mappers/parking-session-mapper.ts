@@ -7,11 +7,11 @@ import { ParkingPeriodVO } from '@domain/parking/value-objects/parking-period-vo
 import { SessionStatusVO } from '@domain/parking/value-objects/session-status-vo.ts';
 import { type ParkingSession as ParkingSessionRow } from '@infra/database/types/Types.ts';
 import {
-  ParkingSpotMapper,
+  type ParkingSpotMapper,
   type SelectableParkingSpot,
 } from '@infra/database/kysely/mappers/parking-spot-mapper.ts';
 import {
-  VehicleMapper,
+  type VehicleMapper,
   type SelectableVehicle,
 } from '@infra/database/kysely/mappers/vehicle-mapper.ts';
 import { TYPES } from '@app/dto/types.ts';
@@ -56,10 +56,7 @@ export class ParkingSessionMapper {
     const vehicle = this.vehicles.toDomain(rows.vehicle);
     const spot = rows.spot ? this.spots.toDomain(rows.spot) : null;
 
-    const period = ParkingPeriodVO.rehydrate(
-      rows.session.entry_at,
-      rows.session.exit_at,
-    );
+    const period = ParkingPeriodVO.rehydrate(rows.session.entry_at, rows.session.exit_at);
 
     return new ParkingSession(
       {

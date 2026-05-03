@@ -6,7 +6,7 @@ import { type Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { type VehicleRepository } from '@domain/parking/repositories/vehicle-repository.ts';
 import { type Database } from '@infra/database/Connection.ts';
-import { VehicleMapper } from '@infra/database/kysely/mappers/vehicle-mapper.ts';
+import { type VehicleMapper } from '@infra/database/kysely/mappers/vehicle-mapper.ts';
 import { TYPES } from '@app/dto/types.ts';
 
 @injectable()
