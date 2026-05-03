@@ -1,4 +1,7 @@
 export const TYPES = {
+  // Database (Kysely instance)
+  Database: Symbol('Database'),
+
   // Mappers (infra/database/kysely/mappers)
   ParkingSpotMapper: Symbol('ParkingSpotMapper'),
   VehicleMapper: Symbol('VehicleMapper'),

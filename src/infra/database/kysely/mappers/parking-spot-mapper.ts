@@ -7,7 +7,10 @@ import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotStatusVO } from '@domain/parking/value-objects/spot-status-vo.ts';
 import { type ParkingSpot as ParkingSpotRow } from '@infra/database/types/Types.ts';
 
-export type SelectableParkingSpot = Selectable<ParkingSpotRow>;
+export type SelectableParkingSpot = Pick<
+  Selectable<ParkingSpotRow>,
+  'id' | 'parking_lot_id' | 'code' | 'floor' | 'is_covered' | 'status'
+>;
 
 export type InsertableParkingSpotRow = {
   id: string;
