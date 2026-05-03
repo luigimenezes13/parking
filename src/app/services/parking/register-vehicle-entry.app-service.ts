@@ -22,9 +22,10 @@ export interface RegisterVehicleEntryOutput {
 }
 
 @injectable()
-export class RegisterVehicleEntryAppService
-  implements AppService<RegisterVehicleEntryInput, RegisterVehicleEntryOutput>
-{
+export class RegisterVehicleEntryAppService implements AppService<
+  RegisterVehicleEntryInput,
+  RegisterVehicleEntryOutput
+> {
   private readonly vehicles: VehicleRepository;
   private readonly sessions: ParkingSessionRepository;
   private readonly parkingLots: ParkingLotResolver;

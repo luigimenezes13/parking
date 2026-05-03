@@ -24,9 +24,10 @@ export interface RegisterSpotReleaseOutput {
 }
 
 @injectable()
-export class RegisterSpotReleaseAppService
-  implements AppService<RegisterSpotReleaseInput, RegisterSpotReleaseOutput>
-{
+export class RegisterSpotReleaseAppService implements AppService<
+  RegisterSpotReleaseInput,
+  RegisterSpotReleaseOutput
+> {
   private readonly spots: ParkingSpotRepository;
   private readonly sessions: ParkingSessionRepository;
   private readonly parkingLots: ParkingLotResolver;
