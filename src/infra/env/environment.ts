@@ -11,6 +11,12 @@ const environmentSchema = z.object({
   DB_USER: z.string(),
   DB_PASSWORD: z.string(),
   DB_MAX_POOL_SIZE: z.coerce.number().default(10),
+
+  RABBITMQ_URL: z.string().min(1),
+  RABBITMQ_RECOGNITION_EXCHANGE: z.string().default('recognition.events'),
+  RABBITMQ_PREFETCH: z.coerce.number().default(10),
+
+  DEFAULT_PARKING_LOT_ID: z.uuid(),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

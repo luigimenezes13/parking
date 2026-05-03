@@ -1,11 +1,12 @@
 import { Kysely, PostgresDialect } from 'kysely';
 import pg from 'pg';
 
-import { loadEnvironment } from '../env/environment.ts';
+import { type DB } from '@infra/database/types/Types.ts';
+import { loadEnvironment } from '@infra/env/environment.ts';
 
 const environment = loadEnvironment();
 
-export const database = new Kysely<Record<string, unknown>>({
+export const database = new Kysely<DB>({
   dialect: new PostgresDialect({
     pool: new pg.Pool({
       host: environment.DB_HOST,
@@ -17,3 +18,5 @@ export const database = new Kysely<Record<string, unknown>>({
     }),
   }),
 });
+
+export type Database = DB;
