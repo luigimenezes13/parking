@@ -2,11 +2,9 @@ import { type DomainEvent } from '@domain/shared/events/domain-event.ts';
 
 export interface VehicleExitedPayload {
   sessionId: string;
-  vehicleId: string;
-  licensePlate: string;
-  spotId: string;
-  spotCode: string;
-  entryAt: Date;
+  parkingLotId: string;
+  vehicleId: string | null;
+  licensePlate: string | null;
   exitAt: Date;
 }
 

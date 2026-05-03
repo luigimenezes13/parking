@@ -4,10 +4,11 @@ export const sessionStatusSchema = z.enum(['ACTIVE', 'FINISHED']);
 
 export const parkingSessionSchema = z
   .object({
-    id: z.string().uuid(),
-    vehicleId: z.string().uuid(),
-    spotId: z.string().uuid(),
+    id: z.uuid(),
+    vehicleId: z.uuid(),
+    spotId: z.uuid().nullable(),
     entryAt: z.date(),
+    spotReleasedAt: z.date().nullable(),
     exitAt: z.date().nullable(),
     status: sessionStatusSchema,
   })

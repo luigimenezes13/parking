@@ -12,16 +12,15 @@ export const vehicleExitedMapper: DomainEventMapper<
   VehicleExitedContext
 > = {
   toEvent(session: ParkingSession, context: VehicleExitedContext): VehicleExited {
+    const vehicle = session.vehicle();
     return Object.freeze({
       eventName: 'parking.session.vehicle-exited',
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        licensePlate: session.vehicle().licensePlate().value(),
-        spotId: session.spot().id().value(),
-        spotCode: session.spot().code().value(),
-        entryAt: session.entryAt(),
+        parkingLotId: session.parkingLotId().value(),
+        vehicleId: vehicle?.id().value() ?? null,
+        licensePlate: vehicle?.licensePlate().value() ?? null,
         exitAt: new Date(context.exitAt.getTime()),
       }),
     });
