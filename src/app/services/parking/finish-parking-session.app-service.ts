@@ -18,9 +18,10 @@ export interface FinishParkingSessionOutput {
 }
 
 @injectable()
-export class FinishParkingSessionAppService
-  implements AppService<FinishParkingSessionInput, FinishParkingSessionOutput>
-{
+export class FinishParkingSessionAppService implements AppService<
+  FinishParkingSessionInput,
+  FinishParkingSessionOutput
+> {
   private readonly sessions: ParkingSessionRepository;
   private readonly publisher: DomainEventPublisher;
 

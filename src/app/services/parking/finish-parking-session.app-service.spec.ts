@@ -77,16 +77,13 @@ describe('FinishParkingSessionAppService', () => {
     });
 
     const eventNames = setup.publisher.published.map((event) => event.eventName);
-    expect(eventNames).toEqual([
-      'parking.session.vehicle-exited',
-      'parking.session.finished',
-    ]);
+    expect(eventNames).toEqual(['parking.session.vehicle-exited', 'parking.session.finished']);
   });
 
   it('should throw InvalidRecognitionPlateError when plate is null', async () => {
-    await expect(
-      setup.service.execute({ plate: null, exitAt: new Date() }),
-    ).rejects.toBeInstanceOf(InvalidRecognitionPlateError);
+    await expect(setup.service.execute({ plate: null, exitAt: new Date() })).rejects.toBeInstanceOf(
+      InvalidRecognitionPlateError,
+    );
   });
 
   it('should throw ActiveSessionNotFoundError when no active session matches the plate', async () => {
