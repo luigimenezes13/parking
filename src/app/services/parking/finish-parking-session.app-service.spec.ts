@@ -10,7 +10,6 @@ import { InMemoryDomainEventPublisher } from '@app/tests/factories/in-memory-dom
 import { StaticParkingLotResolver } from '@app/tests/factories/static-parking-lot-resolver.ts';
 import { FinishParkingSessionAppService } from '@app/services/parking/finish-parking-session.app-service.ts';
 import { ActiveSessionNotFoundError } from '@app/exceptions/recognition/active-session-not-found-error.ts';
-import { InvalidRecognitionPlateError } from '@app/exceptions/recognition/invalid-recognition-plate-error.ts';
 
 interface Setup {
   service: FinishParkingSessionAppService;
@@ -23,7 +22,7 @@ function makeSetup(): Setup {
   const sessions = new InMemoryParkingSessionRepository();
   const publisher = new InMemoryDomainEventPublisher();
   const resolver = new StaticParkingLotResolver();
-  const service = new FinishParkingSessionAppService(sessions, publisher);
+  const service = new FinishParkingSessionAppService(sessions, resolver, publisher);
   return { service, sessions, publisher, resolver };
 }
 
@@ -32,7 +31,11 @@ async function seedSession(setup: Setup, plate: string): Promise<{ sessionId: st
     parkingLotId: setup.resolver.resolveDefault(),
     licensePlate: LicensePlateVO.from(plate),
   });
-  const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+  const session = ParkingSession.enter({
+    parkingLotId: setup.resolver.resolveDefault(),
+    vehicle,
+    entryAt: new Date('2026-04-30T10:00:00Z'),
+  });
   const spot = makeParkingSpot({ parkingLotId: setup.resolver.resolveDefault(), code: 'A' });
   session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
   session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
@@ -80,10 +83,17 @@ describe('FinishParkingSessionAppService', () => {
     expect(eventNames).toEqual(['parking.session.vehicle-exited', 'parking.session.finished']);
   });
 
-  it('should throw InvalidRecognitionPlateError when plate is null', async () => {
-    await expect(setup.service.execute({ plate: null, exitAt: new Date() })).rejects.toBeInstanceOf(
-      InvalidRecognitionPlateError,
+  it('should fall back to most recent active session when plate is null', async () => {
+    const { sessionId } = await seedSession(setup, 'ABC1D23');
+
+    await setup.service.execute({ plate: null, exitAt: new Date('2026-04-30T11:00:30Z') });
+
+    const stored = await setup.sessions.findById(
+      (
+        await import('@domain/shared/value-objects/unique-identifier.ts')
+      ).UniqueIdentifier.fromExisting(sessionId),
     );
+    expect(stored?.isFinished()).toBe(true);
   });
 
   it('should throw ActiveSessionNotFoundError when no active session matches the plate', async () => {

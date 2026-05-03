@@ -4,6 +4,7 @@ import { SessionAlreadyFinishedError } from '@domain/parking/errors/session-alre
 import { SessionNotActiveError } from '@domain/parking/errors/session-not-active.ts';
 import { SessionAlreadyHasSpotError } from '@domain/parking/errors/session-already-has-spot.ts';
 import { SessionWithoutSpotError } from '@domain/parking/errors/session-without-spot.ts';
+import { SessionAlreadyHasVehicleError } from '@domain/parking/errors/session-already-has-vehicle.ts';
 import { type Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { type ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
@@ -17,7 +18,8 @@ import { vehicleEnteredMapper } from '@domain/parking/aggregates/parking-session
 import { vehicleExitedMapper } from '@domain/parking/aggregates/parking-session/events/vehicle-exited-mapper.ts';
 
 export interface ParkingSessionProperties {
-  vehicle: Vehicle;
+  parkingLotId: UniqueIdentifier;
+  vehicle: Vehicle | null;
   spot: ParkingSpot | null;
   status: SessionStatusVO;
   period: ParkingPeriodVO;
@@ -29,9 +31,14 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     super(properties, identifier);
   }
 
-  static enter(opening: { vehicle: Vehicle; entryAt: Date }): ParkingSession {
+  static enter(opening: {
+    parkingLotId: UniqueIdentifier;
+    vehicle?: Vehicle | null;
+    entryAt: Date;
+  }): ParkingSession {
     const session = new ParkingSession({
-      vehicle: opening.vehicle,
+      parkingLotId: opening.parkingLotId,
+      vehicle: opening.vehicle ?? null,
       spot: null,
       status: SessionStatusVO.active(),
       period: ParkingPeriodVO.startedAt(opening.entryAt),
@@ -42,6 +49,16 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     session.addDomainEvent(sessionStartedMapper.toEvent(session));
 
     return session;
+  }
+
+  assignVehicle(assignment: { vehicle: Vehicle }): void {
+    this.ensureActive();
+
+    if (this.properties.vehicle !== null) {
+      throw new SessionAlreadyHasVehicleError(this.identifier.value());
+    }
+
+    this.properties.vehicle = assignment.vehicle;
   }
 
   assignSpot(assignment: { spot: ParkingSpot; occupiedAt: Date }): void {
@@ -92,12 +109,16 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     return this.identifier;
   }
 
-  vehicle(): Vehicle {
+  parkingLotId(): UniqueIdentifier {
+    return this.properties.parkingLotId;
+  }
+
+  vehicle(): Vehicle | null {
     return this.properties.vehicle;
   }
 
-  licensePlate(): LicensePlateVO {
-    return this.properties.vehicle.licensePlate();
+  licensePlate(): LicensePlateVO | null {
+    return this.properties.vehicle?.licensePlate() ?? null;
   }
 
   spot(): ParkingSpot | null {
@@ -134,8 +155,16 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
     return this.properties.status.isFinished();
   }
 
+  hasVehicleAssigned(): boolean {
+    return this.properties.vehicle !== null;
+  }
+
   hasSpotAssigned(): boolean {
     return this.properties.spot !== null;
+  }
+
+  isPendingVehicle(): boolean {
+    return this.properties.vehicle === null && this.properties.status.isActive();
   }
 
   isPendingSpot(): boolean {

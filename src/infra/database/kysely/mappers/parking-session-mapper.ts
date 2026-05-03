@@ -18,12 +18,20 @@ import { TYPES } from '@app/dto/types.ts';
 
 export type SelectableParkingSession = Pick<
   Selectable<ParkingSessionRow>,
-  'id' | 'vehicle_id' | 'spot_id' | 'status' | 'entry_at' | 'spot_released_at' | 'exit_at'
+  | 'id'
+  | 'parking_lot_id'
+  | 'vehicle_id'
+  | 'spot_id'
+  | 'status'
+  | 'entry_at'
+  | 'spot_released_at'
+  | 'exit_at'
 >;
 
 export type InsertableParkingSessionRow = {
   id: string;
-  vehicle_id: string;
+  parking_lot_id: string;
+  vehicle_id: string | null;
   spot_id: string | null;
   status: 'ACTIVE' | 'FINISHED';
   entry_at: Date;
@@ -35,7 +43,7 @@ export type InsertableParkingSessionRow = {
 
 export interface ParkingSessionHydrationRow {
   session: SelectableParkingSession;
-  vehicle: SelectableVehicle;
+  vehicle: SelectableVehicle | null;
   spot: SelectableParkingSpot | null;
 }
 
@@ -53,13 +61,14 @@ export class ParkingSessionMapper {
   }
 
   toDomain(rows: ParkingSessionHydrationRow): ParkingSession {
-    const vehicle = this.vehicles.toDomain(rows.vehicle);
+    const vehicle = rows.vehicle ? this.vehicles.toDomain(rows.vehicle) : null;
     const spot = rows.spot ? this.spots.toDomain(rows.spot) : null;
 
     const period = ParkingPeriodVO.rehydrate(rows.session.entry_at, rows.session.exit_at);
 
     return new ParkingSession(
       {
+        parkingLotId: UniqueIdentifier.fromExisting(rows.session.parking_lot_id),
         vehicle,
         spot,
         status: SessionStatusVO.fromExisting(rows.session.status),
@@ -72,11 +81,13 @@ export class ParkingSessionMapper {
 
   toInsert(session: ParkingSession): InsertableParkingSessionRow {
     const now = new Date();
+    const vehicle = session.vehicle();
     const spot = session.spot();
 
     return {
       id: session.id().value(),
-      vehicle_id: session.vehicle().id().value(),
+      parking_lot_id: session.parkingLotId().value(),
+      vehicle_id: vehicle ? vehicle.id().value() : null,
       spot_id: spot ? spot.id().value() : null,
       status: session.status().serialize(),
       entry_at: session.entryAt(),
@@ -89,10 +100,12 @@ export class ParkingSessionMapper {
 
   toUpdate(
     session: ParkingSession,
-  ): Omit<InsertableParkingSessionRow, 'id' | 'vehicle_id' | 'entry_at' | 'created_at'> {
+  ): Omit<InsertableParkingSessionRow, 'id' | 'parking_lot_id' | 'entry_at' | 'created_at'> {
+    const vehicle = session.vehicle();
     const spot = session.spot();
 
     return {
+      vehicle_id: vehicle ? vehicle.id().value() : null,
       spot_id: spot ? spot.id().value() : null,
       status: session.status().serialize(),
       spot_released_at: session.spotReleasedAt(),

@@ -4,6 +4,7 @@ import { type AppService } from '@app/shared/app-service.ts';
 import { TYPES } from '@app/dto/types.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
+import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { type DomainEventPublisher } from '@domain/shared/events/domain-event-publisher.ts';
 import { ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
@@ -65,10 +66,15 @@ export class RegisterSpotOccupationAppService implements AppService<
       throw new ParkingSpotNotFoundError(parkingLotId.value(), input.spotCode);
     }
 
-    const vehicle = await this.resolveOrCreateVehicle(licensePlate);
+    const vehicle = await this.resolveOrCreateVehicle(licensePlate, parkingLotId);
     await this.vehicles.save(vehicle);
 
-    const session = await this.resolveOrEnterSession(licensePlate, vehicle, input.occupiedAt);
+    const session = await this.resolveSession(
+      licensePlate,
+      vehicle,
+      parkingLotId,
+      input.occupiedAt,
+    );
     session.assignSpot({ spot, occupiedAt: input.occupiedAt });
     await this.sessions.save(session);
     await this.publisher.publish(session.pullDomainEvents());
@@ -79,28 +85,35 @@ export class RegisterSpotOccupationAppService implements AppService<
     };
   }
 
-  private async resolveOrCreateVehicle(licensePlate: LicensePlateVO): Promise<Vehicle> {
+  private async resolveOrCreateVehicle(
+    licensePlate: LicensePlateVO,
+    parkingLotId: UniqueIdentifier,
+  ): Promise<Vehicle> {
     const existing = await this.vehicles.findByLicensePlate(licensePlate);
     if (existing) {
       return existing;
     }
 
-    return Vehicle.registerAnonymous({
-      parkingLotId: this.parkingLots.resolveDefault(),
-      licensePlate,
-    });
+    return Vehicle.registerAnonymous({ parkingLotId, licensePlate });
   }
 
-  private async resolveOrEnterSession(
+  private async resolveSession(
     licensePlate: LicensePlateVO,
     vehicle: Vehicle,
+    parkingLotId: UniqueIdentifier,
     occupiedAt: Date,
   ): Promise<ParkingSession> {
-    const active = await this.sessions.findActiveByPlate(licensePlate);
-    if (active) {
-      return active;
+    const byPlate = await this.sessions.findActiveByPlate(licensePlate);
+    if (byPlate) {
+      return byPlate;
     }
 
-    return ParkingSession.enter({ vehicle, entryAt: occupiedAt });
+    const pending = await this.sessions.findOldestPendingVehicle(parkingLotId);
+    if (pending) {
+      pending.assignVehicle({ vehicle });
+      return pending;
+    }
+
+    return ParkingSession.enter({ parkingLotId, vehicle, entryAt: occupiedAt });
   }
 }

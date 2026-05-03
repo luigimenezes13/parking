@@ -1,25 +1,63 @@
 # Sprint 5 — Fluxo de Eventos (`/events` → RabbitMQ → Handlers)
 
-> **Status:** entregue 2026-05-03
-> **Periodo:** Sprint 5 (12/05 – 25/05/2026), antecipada
 > **Escopo:** exclusivamente o fluxo `/events` (sem CRUD de entidades)
 
 ---
 
 ## 1. Contexto
 
-O servico `parking` recebe eventos do `vehicle-service` (rodando no Raspberry Pi do
-TCC), traduz cada evento em uma transicao do agregado `ParkingSession` e persiste
-o estado em Postgres. Esta sprint entrega:
+O servico `parking` recebe eventos do `vehicle-service` (rodando no Raspberry Pi),
+traduz cada evento em uma transicao do agregado `ParkingSession` e persiste o
+estado em Postgres.
 
-1. **Refatoracao do dominio** para suportar transicoes incrementais
-   (`enter` → `assignSpot` → `releaseSpot` → `finish`).
-2. **Persistencia** completa via Prisma (schema/migrations) + Kysely (query builder).
-3. **Mensageria interna** via RabbitMQ (topic exchange + DLQ por evento).
-4. **Endpoint `POST /events`** que valida e republica em RabbitMQ.
-5. **Handlers dedicados** por tipo de evento, cada um chamando um App Service.
-6. **Auto-criacao de `Vehicle` anonimo** quando uma placa nova aparece — o
-   vinculo com `Driver` fica para o CRUD futuro.
+### Realidade do `vehicle-service` (Sprint 1)
+
+O loop do `parking_monitor.py` faz **duas chamadas de reconhecimento por ciclo**:
+
+1. **`POST /recognition/frame-presence`** (frame inteiro) — retorna apenas
+   `{vehicle_detected, confidence}`, **NAO** retorna placa.
+2. **`POST /recognition/spot`** (recorte da vaga) — retorna
+   `{vehicle_detected, plate, confidence}`. So aqui a placa fica disponivel.
+
+Sequencia exata por ciclo:
+
+```
+detect_frame_presence(frame_completo)        ← sem placa
+  └── _handle_parking_presence(detected)
+        └── notify_vehicle_entered(state.current_plate)  ← plate=None na primeira deteccao
+for spot in self.spots:
+    detect_spot(spot_id, recorte)            ← retorna placa
+      └── _on_spot_occupied(spot, plate)
+            └── state.current_plate = plate  ← plate populada AQUI
+            └── notify_spot_occupied(spot_id, plate, conf)
+```
+
+**Consequencia:** o evento `vehicle.entered` chega no parking API com
+`plate=null` (a placa ainda nao foi descoberta pelo OCR). So `spot.occupied`
+traz a placa pela primeira vez. Em ciclos subsequentes, o `vehicle-service`
+mantem `state.current_plate` no estado interno, entao `spot.released` e
+`vehicle.exited` ja chegam com a placa.
+
+| Evento | `plate` na pratica | Por que? |
+|---|---|---|
+| `vehicle.entered` | **`null`** | Frame-level fired antes do spot-level no mesmo ciclo |
+| `spot.occupied` | placa real | Spot-level retorna do OCR |
+| `spot.released` | placa real | Mantida em `spot.current_plate` |
+| `vehicle.exited` | placa real | Mantida em `state.current_plate` |
+
+### Resposta do parking API: sessao pendente
+
+Em vez de exigir placa para criar sessao, o parking trata `vehicle.entered`
+como abertura de uma **sessao pendente** (`vehicle=null`, `spot=null`). Quando
+`spot.occupied` chega com placa, o App Service:
+
+1. Resolve ou cria `Vehicle` (auto-anonimo se placa desconhecida).
+2. Localiza a sessao pendente mais antiga do `parking_lot` via
+   `findOldestPendingVehicle`.
+3. Chama `session.assignVehicle({vehicle})` + `session.assignSpot({spot, ...})`.
+
+`spot.released` localiza a sessao por placa. `vehicle.exited` tambem usa placa,
+com fallback para `findMostRecentActive(parkingLotId)` se a placa ja foi limpa.
 
 ---
 
@@ -32,7 +70,7 @@ flowchart LR
         vs[vehicle-service<br/>FastAPI Python]
         rs[recognition-service<br/>YOLO + PaddleOCR]
         camera -->|frames| vs
-        vs -->|HTTP /recognition/*| rs
+        vs -->|HTTP /recognition/frame-presence<br/>HTTP /recognition/spot| rs
     end
 
     subgraph Parking["parking API (Node 20 + Fastify)"]
@@ -43,23 +81,23 @@ flowchart LR
         co[Consumer<br/>spot.occupied]
         cr[Consumer<br/>spot.released]
         cx[Consumer<br/>vehicle.exited]
-        h1[VehicleEnteredHandler]
-        h2[SpotOccupiedHandler]
-        h3[SpotReleasedHandler]
-        h4[VehicleExitedHandler]
-        s1[RegisterVehicleEntryAppService]
-        s2[RegisterSpotOccupationAppService]
-        s3[RegisterSpotReleaseAppService]
-        s4[FinishParkingSessionAppService]
+        h1[VehicleEnteredHandler] --> s1[RegisterVehicleEntryAppService]
+        h2[SpotOccupiedHandler] --> s2[RegisterSpotOccupationAppService]
+        h3[SpotReleasedHandler] --> s3[RegisterSpotReleaseAppService]
+        h4[VehicleExitedHandler] --> s4[FinishParkingSessionAppService]
         agg[ParkingSession<br/>aggregate root]
         repos[(Postgres<br/>via Kysely)]
         log[LoggerDomainEventPublisher<br/>structured logs]
 
         ctrl --> pub --> rmq
-        rmq --> cv --> h1 --> s1 --> agg
-        rmq --> co --> h2 --> s2 --> agg
-        rmq --> cr --> h3 --> s3 --> agg
-        rmq --> cx --> h4 --> s4 --> agg
+        rmq --> cv --> h1
+        rmq --> co --> h2
+        rmq --> cr --> h3
+        rmq --> cx --> h4
+        s1 --> agg
+        s2 --> agg
+        s3 --> agg
+        s4 --> agg
         s1 --> repos
         s2 --> repos
         s3 --> repos
@@ -67,7 +105,7 @@ flowchart LR
         agg --> log
     end
 
-    vs -->|POST events| ctrl
+    vs -->|POST /events| ctrl
 ```
 
 ### Camadas (Clean Architecture)
@@ -105,39 +143,35 @@ flowchart TD
     app --> domain
 ```
 
-Regras enforce-adas pelo `eslint-ddd-plugin.mjs`:
-- `domain/` nao importa de `app/` ou `infra/`.
-- `app/` nao importa de `infra/`.
-
 ---
 
 ## 3. Modelo de Dominio
 
-### 3.1 Aggregate `ParkingSession`
+### 3.1 Aggregate `ParkingSession` (apos refator de sessao pendente)
 
 ```mermaid
 classDiagram
     class ParkingSession {
-        -vehicle: Vehicle
+        -parkingLotId: UniqueIdentifier
+        -vehicle: Vehicle | null
         -spot: ParkingSpot | null
         -status: SessionStatusVO
         -period: ParkingPeriodVO
         -spotReleasedAt: Date | null
-        +enter(vehicle, entryAt)$
+        +enter(parkingLotId, vehicle?, entryAt)$
+        +assignVehicle(vehicle)
         +assignSpot(spot, occupiedAt)
         +releaseSpot(releasedAt)
         +finish(exitAt)
-        +licensePlate() LicensePlateVO
+        +licensePlate() LicensePlateVO | null
+        +isPendingVehicle() boolean
         +isPendingSpot() boolean
-        +hasSpotAssigned() boolean
     }
     class Vehicle {
         -driverId: UniqueIdentifier | null
         -parkingLotId: UniqueIdentifier
         -licensePlate: LicensePlateVO
-        -brand, model, color
         +registerAnonymous()$
-        +transferOwnershipTo(driverId)
     }
     class ParkingSpot {
         -parkingLotId: UniqueIdentifier
@@ -146,108 +180,110 @@ classDiagram
         +occupyBySession()
         +releaseBySession()
     }
-    class SessionStatusVO {
-        ACTIVE | FINISHED
-        +finish() SessionStatusVO
-    }
-    class SpotStatusVO {
-        FREE | OCCUPIED | RESERVED
-        +occupy()
-        +release()
-    }
-    class LicensePlateVO {
-        AAA0A00 (Mercosul) | AAA0000 (legado)
-        +from(rawValue)$
-    }
-    ParkingSession "1" --> "1" Vehicle
+    ParkingSession "1" --> "0..1" Vehicle
     ParkingSession "1" --> "0..1" ParkingSpot
-    ParkingSession --> SessionStatusVO
-    ParkingSpot --> SpotStatusVO
-    Vehicle --> LicensePlateVO
 ```
 
-### 3.2 Eventos do dominio (emitidos pelo aggregate)
+`vehicle` e `spot` sao opcionais. `parkingLotId` e obrigatorio (chave para
+encontrar sessoes pendentes).
 
-| Evento | Quando | Payload |
-|---|---|---|
-| `parking.session.vehicle-entered` | `enter()` | `{sessionId, vehicleId, licensePlate, entryAt}` |
-| `parking.session.started` | `enter()` | `{sessionId, vehicleId, licensePlate, entryAt}` |
-| `parking.session.spot-occupied` | `assignSpot()` | `{sessionId, vehicleId, licensePlate, spotId, spotCode, occupiedAt}` |
-| `parking.session.spot-released` | `releaseSpot()` | `{sessionId, spotId, spotCode, releasedAt}` |
-| `parking.session.vehicle-exited` | `finish()` | `{sessionId, vehicleId, licensePlate, exitAt}` |
-| `parking.session.finished` | `finish()` | `{sessionId, vehicleId, licensePlate, entryAt, exitAt}` |
-
-### 3.3 Estado da sessao
+### 3.2 State machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ACTIVE_pending: enter()
-    ACTIVE_pending --> ACTIVE_with_spot: assignSpot()
-    ACTIVE_with_spot --> ACTIVE_spot_released: releaseSpot()
-    ACTIVE_pending --> FINISHED: finish() [patologico]
-    ACTIVE_with_spot --> FINISHED: finish() [defensivo: libera spot]
-    ACTIVE_spot_released --> FINISHED: finish()
+    [*] --> Pending_no_vehicle: enter parkingLotId, plate=null
+    [*] --> Active_no_spot: enter parkingLotId, vehicle
+    Pending_no_vehicle --> Active_no_spot: assignVehicle
+    Active_no_spot --> Active_with_spot: assignSpot
+    Active_with_spot --> Active_spot_released: releaseSpot
+    Pending_no_vehicle --> FINISHED: finish [drive-through sem OCR]
+    Active_no_spot --> FINISHED: finish
+    Active_with_spot --> FINISHED: finish [defensivo: libera spot]
+    Active_spot_released --> FINISHED: finish
     FINISHED --> [*]
 
-    note right of ACTIVE_pending
-        spot=null, vehicle=set
-        emite VehicleEntered + SessionStarted
+    note right of Pending_no_vehicle
+        vehicle=null, spot=null
+        Esperando spot.occupied trazer placa
     end note
-    note right of ACTIVE_with_spot
+    note right of Active_no_spot
+        vehicle setado, spot=null
+    end note
+    note right of Active_with_spot
         spot.status=OCCUPIED
-        emite SpotOccupied
     end note
-    note right of ACTIVE_spot_released
-        spot.status=FREE
+    note right of Active_spot_released
+        spot.status=FREE,
         spotReleasedAt preenchido
-        emite SpotReleased
-    end note
-    note right of FINISHED
-        period fechado, exitAt preenchido
-        emite VehicleExited + SessionFinished
     end note
 ```
 
+### 3.3 Eventos do dominio
+
+| Evento | Quando | Payload |
+|---|---|---|
+| `parking.session.vehicle-entered` | `enter()` | `{sessionId, parkingLotId, vehicleId\|null, licensePlate\|null, entryAt}` |
+| `parking.session.started` | `enter()` | `{sessionId, parkingLotId, vehicleId\|null, licensePlate\|null, entryAt}` |
+| `parking.session.spot-occupied` | `assignSpot()` | `{sessionId, vehicleId\|null, licensePlate\|null, spotId, spotCode, occupiedAt}` |
+| `parking.session.spot-released` | `releaseSpot()` | `{sessionId, spotId, spotCode, releasedAt}` |
+| `parking.session.vehicle-exited` | `finish()` | `{sessionId, parkingLotId, vehicleId\|null, licensePlate\|null, exitAt}` |
+| `parking.session.finished` | `finish()` | `{sessionId, parkingLotId, vehicleId\|null, licensePlate\|null, entryAt, exitAt}` |
+
+`vehicleId` e `licensePlate` ficam null **so** quando a sessao termina sem ter
+recebido `spot.occupied` (caso patologico — drive-through). Nos casos normais,
+`spot.occupied` chega antes e popula esses campos para os eventos seguintes.
+
 ---
 
-## 4. Fluxo Ponta-a-Ponta dos 4 Eventos
-
-### 4.1 Sequence diagram
+## 4. Fluxo Real Ponta-a-Ponta
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant V as vehicle-service<br/>(Raspberry)
-    participant C as RecognitionEventsController
-    participant Z as Zod validator
-    participant P as RabbitMQRecognitionEventPublisher
-    participant R as RabbitMQ<br/>recognition.events
-    participant H as Handler dedicado
-    participant S as App Service
-    participant D as Domain (ParkingSession)
+    participant V as vehicle-service
+    participant C as Controller /events
+    participant R as RabbitMQ
+    participant H1 as VehicleEnteredHandler
+    participant H2 as SpotOccupiedHandler
+    participant H3 as SpotReleasedHandler
+    participant H4 as VehicleExitedHandler
     participant DB as Postgres
-    participant L as LoggerDomainEventPublisher
 
-    V->>C: POST /events {event, plate, ...}
-    C->>Z: parse(payload)
-    Z-->>C: ok
-    C->>P: publish(payload)
-    P->>R: publish(routingKey=event.type)
-    R-->>C: ack
-    C-->>V: 202 {accepted: true}
+    Note over V: Frame detecta veiculo (sem placa ainda)
+    V->>C: POST /events {event:vehicle.entered, plate:null, ts}
+    C->>R: publish routingKey=vehicle.entered
+    C-->>V: 202
+    R->>H1: payload
+    H1->>DB: INSERT ParkingSession (vehicle_id=NULL, spot_id=NULL, status=ACTIVE)
 
-    R->>H: deliver(payload)
-    H->>S: execute(input)
-    S->>DB: findByLicensePlate / findActiveByPlate
-    S->>D: enter / assignSpot / releaseSpot / finish
-    D-->>S: domain events (pull)
-    S->>DB: save (transaction)
-    S->>L: publish(events)
-    L-->>L: log estruturado
-    H-->>R: ack
+    Note over V: Spot detecta placa via OCR
+    V->>C: POST /events {event:spot.occupied, spot_id:A, plate:ABC, conf:0.95, ts}
+    C->>R: publish routingKey=spot.occupied
+    C-->>V: 202
+    R->>H2: payload
+    H2->>DB: SELECT ParkingSession pendente (vehicle_id IS NULL) ORDER BY entry_at ASC LIMIT 1
+    H2->>DB: SELECT Vehicle by license_plate
+    alt Vehicle existe
+        H2->>DB: nada
+    else Vehicle novo
+        H2->>DB: INSERT Vehicle anonimo
+    end
+    H2->>DB: UPDATE ParkingSpot status=OCCUPIED
+    H2->>DB: UPDATE ParkingSession SET vehicle_id=..., spot_id=...
+
+    Note over V: Veiculo deixou a vaga
+    V->>C: POST /events {event:spot.released, spot_id:A, plate:ABC, ts}
+    H3->>DB: SELECT ParkingSession active by plate
+    H3->>DB: UPDATE ParkingSpot status=FREE
+    H3->>DB: UPDATE ParkingSession SET spot_released_at=...
+
+    Note over V: Veiculo deixou o perimetro
+    V->>C: POST /events {event:vehicle.exited, plate:ABC, ts}
+    H4->>DB: SELECT ParkingSession active by plate
+    H4->>DB: UPDATE ParkingSession SET status=FINISHED, exit_at=...
 ```
 
-### 4.2 Mapeamento evento HTTP → App Service
+### Mapeamento evento HTTP → App Service
 
 | Evento HTTP | Routing key | Fila | Handler | App Service |
 |---|---|---|---|---|
@@ -256,7 +292,7 @@ sequenceDiagram
 | `spot.released` | `spot.released` | `recognition.events.q.spot.released` | `SpotReleasedHandler` | `RegisterSpotReleaseAppService` |
 | `vehicle.exited` | `vehicle.exited` | `recognition.events.q.vehicle.exited` | `VehicleExitedHandler` | `FinishParkingSessionAppService` |
 
-### 4.3 Topologia RabbitMQ
+### Topologia RabbitMQ
 
 ```mermaid
 flowchart LR
@@ -287,54 +323,87 @@ flowchart LR
     DLX -->|vehicle.exited| DLQ4
 ```
 
-Cada fila e durable. Mensagens com erro de processamento sao `nack`-eadas (sem
-re-enfileirar) e roteadas para a DLQ via `x-dead-letter-exchange`.
+Filas durable. Mensagens com erro sao `nack`-eadas (sem requeue) e roteadas para
+DLQ via `x-dead-letter-exchange`.
 
 ---
 
-## 5. Modelo de Dados (Postgres)
+## 5. App Services — Regras Atualizadas
+
+### 5.1 `RegisterVehicleEntryAppService` (vehicle.entered)
+
+```mermaid
+flowchart TD
+    A[plate, entryAt] --> B{plate == null?}
+    B -->|sim| P[ParkingSession.enter parkingLotId, entryAt SEM vehicle]
+    P --> P2[save + publish events]
+    P2 --> R1[return created-pending-vehicle]
+    B -->|nao| C[LicensePlateVO.from]
+    C --> D[findActiveByPlate]
+    D --> E{ja existe?}
+    E -->|sim| R2[return duplicate-discarded]
+    E -->|nao| G[findOrCreate Vehicle anonimo]
+    G --> H[ParkingSession.enter com vehicle]
+    H --> H2[save + publish events]
+    H2 --> R3[return created-with-vehicle]
+```
+
+Output: `'created-with-vehicle' | 'created-pending-vehicle' | 'duplicate-discarded'`.
+
+### 5.2 `RegisterSpotOccupationAppService` (spot.occupied)
+
+```mermaid
+flowchart TD
+    A[plate, spotCode, occupiedAt] --> B{plate null?}
+    B -->|sim| Z[throw InvalidRecognitionPlateError]
+    B -->|nao| C[Resolve ParkingSpot by code]
+    C --> D[findOrCreate Vehicle by plate]
+    D --> E[Resolver sessao]
+    E --> F1[findActiveByPlate]
+    F1 -->|encontra| OK1[usa essa sessao]
+    F1 -->|nao| F2[findOldestPendingVehicle parkingLotId]
+    F2 -->|encontra| AV[session.assignVehicle vehicle]
+    AV --> OK2[usa essa sessao]
+    F2 -->|nao| F3[ParkingSession.enter com vehicle]
+    F3 --> OK3[usa nova sessao]
+    OK1 --> S[session.assignSpot spot]
+    OK2 --> S
+    OK3 --> S
+    S --> SAVE[save + publish events]
+```
+
+### 5.3 `RegisterSpotReleaseAppService` (spot.released)
+
+- Resolve `ParkingSpot`.
+- Sessao: tenta `findActiveByPlate` se plate existe, fallback `findActiveBySpot`.
+- `session.releaseSpot({releasedAt})`.
+
+### 5.4 `FinishParkingSessionAppService` (vehicle.exited)
+
+- Sessao: `findActiveByPlate(plate)` quando plate existe.
+- Fallback: `findMostRecentActive(parkingLotId)` (cobre `plate=null` ou casos
+  de race condition em que a placa ja foi limpa).
+- Throw `ActiveSessionNotFoundError` se nenhum encontrar.
+- `session.finish({exitAt})` — defensivamente libera spot se ainda estiver
+  ocupado.
+
+---
+
+## 6. Modelo de Dados (Postgres)
 
 ```mermaid
 erDiagram
     drivers ||--o{ vehicles : "owns (nullable)"
     parking_lots ||--o{ parking_spots : "contains"
     parking_lots ||--o{ vehicles : "registered_in"
-    vehicles ||--o{ parking_sessions : "uses"
+    parking_lots ||--o{ parking_sessions : "scoped_to"
+    vehicles ||--o{ parking_sessions : "uses (nullable)"
     parking_spots ||--o{ parking_sessions : "occupied_by"
 
-    drivers {
-        uuid id PK
-        text cnh UK
-        text email UK
-        text name
-        text phone
-    }
-    parking_lots {
-        uuid id PK
-        text name
-        text address
-        int total_capacity
-    }
-    parking_spots {
-        uuid id PK
-        uuid parking_lot_id FK
-        text code
-        int floor
-        bool is_covered
-        spot_status status
-    }
-    vehicles {
-        uuid id PK
-        uuid driver_id FK "nullable"
-        uuid parking_lot_id FK
-        text license_plate UK
-        text brand "nullable"
-        text model "nullable"
-        text color "nullable"
-    }
     parking_sessions {
         uuid id PK
-        uuid vehicle_id FK
+        uuid parking_lot_id FK
+        uuid vehicle_id FK "nullable"
         uuid spot_id FK "nullable"
         session_status status
         timestamptz entry_at
@@ -343,326 +412,207 @@ erDiagram
     }
 ```
 
-Enums: `SpotStatus { FREE OCCUPIED RESERVED }`, `SessionStatus { ACTIVE FINISHED }`.
+`parking_sessions.vehicle_id` agora e nullable. `parking_lot_id` adicionado para
+suportar `findOldestPendingVehicle(parkingLotId)`.
 
-Indices: `parking_sessions(vehicle_id, status)` e `parking_sessions(spot_id, status)`
-suportam as queries `findActiveByPlate` (via JOIN com `vehicles`) e `findActiveBySpot`.
+Indices criticos:
+- `(parking_lot_id, status, entry_at ASC)` — usado por `findOldestPendingVehicle`
+  e `findMostRecentActive`.
+- `(vehicle_id, status)` — usado por `findActiveByPlate` (JOIN com vehicles).
+- `(spot_id, status)` — usado por `findActiveBySpot`.
+
+Migrations:
+- `20260501022615_start_parking` — schema inicial
+- `20260503172501_session_pending_vehicle` — adiciona `parking_lot_id`, torna
+  `vehicle_id` nullable, novos indices
 
 ---
 
-## 6. Estrutura de Codigo
+## 7. Estrutura de Codigo
 
 ```
 src/
-├── domain/
-│   ├── parking/
-│   │   ├── aggregates/parking-session/
-│   │   │   ├── parking-session.ts                # aggregate root
-│   │   │   ├── events/                           # 6 eventos + 6 mappers
-│   │   │   └── parking-session.spec.ts           # 21 unit tests
-│   │   ├── entities/
-│   │   │   ├── driver.ts
-│   │   │   ├── parking-lot.ts
-│   │   │   ├── parking-spot.ts
-│   │   │   └── vehicle.ts                        # registerAnonymous adicionado
-│   │   ├── value-objects/                        # 5 VOs
-│   │   ├── errors/                               # 7 domain errors
-│   │   ├── repositories/                         # 5 interfaces
-│   │   ├── schemas/                              # zod schemas
-│   │   └── __tests__/factories/                  # makeVehicle, makeParkingSpot, ...
-│   └── shared/                                   # Entity, AggregateRoot, ValueObject
+├── domain/parking/
+│   ├── aggregates/parking-session/
+│   │   ├── parking-session.ts                    # vehicle nullable, parkingLotId, assignVehicle
+│   │   ├── events/                               # 6 eventos com vehicleId/licensePlate nullable
+│   │   └── parking-session.spec.ts               # 28 unit tests
+│   ├── entities/{driver,parking-lot,parking-spot,vehicle}.ts
+│   ├── value-objects/                            # 5 VOs
+│   ├── errors/                                   # 8 domain errors (incl. SessionAlreadyHasVehicle)
+│   ├── repositories/                             # 5 interfaces (com findOldestPendingVehicle)
+│   └── __tests__/factories/
 │
 ├── app/
-│   ├── shared/app-service.ts                     # AppService<I,O>
+│   ├── shared/app-service.ts
 │   ├── dto/types.ts                              # symbols DI
 │   ├── services/
-│   │   ├── parking-lot-resolver.ts               # interface
-│   │   └── parking/
-│   │       ├── register-vehicle-entry.app-service.ts
-│   │       ├── register-spot-occupation.app-service.ts
-│   │       ├── register-spot-release.app-service.ts
-│   │       └── finish-parking-session.app-service.ts
+│   │   ├── parking-lot-resolver.ts
+│   │   └── parking/                              # 4 App Services + .spec.ts
 │   ├── handlers/recognition/                     # 4 handlers
-│   ├── messaging/
-│   │   ├── recognition-event-payload.ts          # contratos
-│   │   └── recognition-event-publisher.ts        # interface
-│   ├── exceptions/recognition/                   # InvalidRecognitionPlate, ...
+│   ├── messaging/                                # contratos do barramento
+│   ├── exceptions/recognition/                   # 3 exceptions
 │   └── tests/
 │       ├── in-memory-repositories/               # 3 fakes
-│       └── factories/                            # publisher fake, lot resolver
+│       └── factories/
 │
 └── infra/
-    ├── controllers/
-    │   ├── HealthController.ts
-    │   ├── RecognitionEventsController.ts
-    │   └── recognition/event-payload.schema.ts   # zod discriminated union
+    ├── controllers/                              # Health + RecognitionEvents + zod schema
     ├── database/
-    │   ├── Connection.ts                         # Kysely<DB> tipado
-    │   ├── seed.ts                               # popula 1 lot + 2 spots
-    │   ├── prisma/schema.prisma
-    │   └── kysely/
-    │       ├── mappers/                          # 3 mappers
-    │       └── repositories/                     # 3 repos + .integration.spec.ts
-    ├── messaging/rabbitmq/
-    │   ├── connection.ts                         # singleton + reconnect
-    │   ├── topology.ts                           # exchange/queue/DLX
-    │   ├── rabbitmq-recognition-event-publisher.ts
-    │   ├── recognition-event-consumer.ts         # generico com retry
-    │   └── recognition-flow.integration.spec.ts
+    │   ├── Connection.ts                         # Kysely<DB>
+    │   ├── seed.ts
+    │   ├── prisma/schema.prisma                  # 5 modelos
+    │   └── kysely/{mappers,repositories}/        # 3 mappers + 3 repos
+    ├── messaging/rabbitmq/                       # connection, topology, publisher, consumer
     ├── events/logger-domain-event-publisher.ts
     ├── services/env-parking-lot-resolver.ts
-    ├── server/
-    │   ├── index.ts                              # bootstrap completo
-    │   └── error-handler.ts
-    ├── env/environment.ts                        # zod env schema
-    └── di/
-        ├── Container.ts
-        ├── Mappers.ts
-        ├── Repositories.ts
-        ├── Services.ts
-        ├── AppServices.ts                        # binds dos 4 services + 4 handlers
-        ├── Usecases.ts                           # vazio (reservado para futuro)
-        └── Controllers.ts
+    ├── server/{index.ts,error-handler.ts}
+    ├── env/environment.ts
+    └── di/                                       # 6 modulos de bind
 ```
 
 ---
 
-## 7. App Services — Resumo das Regras
-
-### 7.1 `RegisterVehicleEntryAppService` (vehicle.entered)
-
-```mermaid
-flowchart TD
-    A[plate: string-null, entryAt] --> B{plate == null?}
-    B -->|sim| Z1[throw InvalidRecognitionPlateError]
-    B -->|nao| C[LicensePlateVO.from plate]
-    C --> D[findActiveByPlate]
-    D --> E{ja existe?}
-    E -->|sim| F[return duplicate-discarded]
-    E -->|nao| G[findOrCreate Vehicle anonimo]
-    G --> H[ParkingSession.enter]
-    H --> I[save session]
-    I --> J[publish domain events]
-    J --> K[return created]
-```
-
-### 7.2 `RegisterSpotOccupationAppService` (spot.occupied)
-
-- Valida plate; resolve `ParkingSpot` por `(parkingLotId, code)`.
-- Auto-cria `Vehicle` se a placa nao existe.
-- Resolve sessao ativa por placa; se nao existe (caso patologico), chama `enter`.
-- `session.assignSpot({spot, occupiedAt})`.
-- Persiste em transacao (vehicle + session + spot status).
-
-### 7.3 `RegisterSpotReleaseAppService` (spot.released)
-
-- Resolve `ParkingSpot`; lookup da sessao por placa, fallback para `findActiveBySpot`.
-- `session.releaseSpot({releasedAt})`.
-
-### 7.4 `FinishParkingSessionAppService` (vehicle.exited)
-
-- Valida plate; `findActiveByPlate`; throw se nao encontrar.
-- `session.finish({exitAt})` — defensivamente libera spot se ainda estiver ocupado.
-
----
-
-## 8. Cobertura de Testes
+## 8. Cobertura de Testes (revisao 2)
 
 | Tipo | Quantidade | Arquivos |
 |---|---:|---|
-| **Unit (dominio)** | 31 | `parking-session.spec.ts` (21), `license-plate-vo.spec.ts` (10) |
-| **Unit (app services)** | 20 | 4 specs em `app/services/parking/` |
-| **Integration (Postgres)** | 16 | 3 specs em `infra/database/kysely/repositories/` |
+| **Unit (dominio)** | 38 | `parking-session.spec.ts` (28), `license-plate-vo.spec.ts` (10) |
+| **Unit (app services)** | 22 | 4 specs em `app/services/parking/` |
+| **Integration (Postgres)** | 20 | 3 specs em `infra/database/kysely/repositories/` |
 | **Integration (RabbitMQ)** | 2 | `recognition-flow.integration.spec.ts` |
-| **Total** | **69** | — |
-
-Convencoes:
-- Sufixo `.spec.ts` (unit) ou `.integration.spec.ts` (com infra real).
-- Factories em `__tests__/factories/` (dominio) e `tests/factories/` (app).
-- Nomes `it('should ...')` descrevendo o comportamento assertado.
+| **Total** | **82** | — |
 
 Comandos:
 ```bash
-pnpm test              # unit (rapido, sem dependencia externa)
-pnpm test:integration  # integration (precisa de Postgres + RabbitMQ rodando)
+pnpm test              # unit
+pnpm test:integration  # integration (precisa Postgres + RabbitMQ rodando)
 pnpm test:all          # ambos
-pnpm pr                # pipeline completa: test + lint + typecheck + build
+pnpm pr                # test + lint + typecheck + build
 ```
 
 ---
 
-## 9. Smoke E2E Validado
+## 9. Smoke E2E (cenario real do Raspberry)
 
-Com `docker compose up -d` (Postgres + RabbitMQ), `pnpm migrate`, `pnpm seed`, `pnpm dev`:
+Setup:
+```bash
+docker compose up -d
+pnpm migrate           # cria 20260503172501_session_pending_vehicle
+pnpm generate
+pnpm seed              # 1 ParkingLot + 2 spots (A,B)
+pnpm dev
+```
+
+Cenario simulando o `vehicle-service` (note `plate=null` em `vehicle.entered`):
 
 ```bash
 curl -X POST localhost:3000/events -H 'Content-Type: application/json' \
-  -d '{"event":"vehicle.entered","plate":"ABC1D23","timestamp":"2026-05-03T10:00:00Z"}'
+  -d '{"event":"vehicle.entered","plate":null,"timestamp":"2026-05-03T10:00:00Z"}'
+# 202 — sessao PENDENTE criada (vehicle_id=NULL, spot_id=NULL)
 
 curl -X POST localhost:3000/events -H 'Content-Type: application/json' \
   -d '{"event":"spot.occupied","spot_id":"A","plate":"ABC1D23","confidence":0.95,"timestamp":"2026-05-03T10:00:30Z"}'
+# 202 — Vehicle ABC1D23 auto-criado; sessao pendente recebe vehicle + spot
 
 curl -X POST localhost:3000/events -H 'Content-Type: application/json' \
   -d '{"event":"spot.released","spot_id":"A","plate":"ABC1D23","timestamp":"2026-05-03T11:00:00Z"}'
+# 202 — spot A volta a FREE; spotReleasedAt preenchido; sessao ainda ACTIVE
 
 curl -X POST localhost:3000/events -H 'Content-Type: application/json' \
   -d '{"event":"vehicle.exited","plate":"ABC1D23","timestamp":"2026-05-03T11:00:30Z"}'
+# 202 — sessao FINISHED com exit_at preenchido
 ```
 
-Resultado validado em 2026-05-03:
+Resultado validado em 2026-05-03 com fluxo realistic:
 
-| | Esperado | Observado |
+| Verificacao | Esperado | Observado |
 |---|---|---|
 | HTTP responses | 4× `202 {accepted:true}` | OK |
 | Filas RabbitMQ | todas zeradas | OK |
 | DLQs | todas vazias | OK |
-| `parking_sessions` | 1 linha `FINISHED`, todos timestamps preenchidos | OK |
-| `vehicles` | `ABC1D23` criado, `driver_id NULL` | OK |
+| `parking_sessions` | 1 linha FINISHED, vehicle_id e spot_id setados ao final, `entry_at`/`spot_released_at`/`exit_at` preenchidos | OK |
+| `vehicles` | `ABC1D23` com `driver_id NULL` (anonimo) | OK |
 | `parking_spots` `A` | `status=FREE` | OK |
-| Domain events nos logs | 6 em ordem | OK |
+| Domain events | 6 emitidos: `vehicle-entered`(plate=null) → `started`(plate=null) → `spot-occupied`(plate=ABC) → `spot-released` → `vehicle-exited`(plate=ABC) → `finished`(plate=ABC) | OK |
 
 ---
 
 ## 10. Configuracao
 
-### Variaveis de ambiente
+### Env vars
 ```
-NODE_ENV=development
-PORT=3000
-
 DATABASE_URL=postgresql://parking:parking@localhost:5432/parking
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=parking
-DB_USER=parking
-DB_PASSWORD=parking
-DB_MAX_POOL_SIZE=10
-
 RABBITMQ_URL=amqp://guest:guest@localhost:5672
 RABBITMQ_RECOGNITION_EXCHANGE=recognition.events
 RABBITMQ_PREFETCH=10
-
 DEFAULT_PARKING_LOT_ID=11111111-1111-4111-8111-111111111111
 ```
 
 ### Servicos do `docker-compose.yml`
-- `parking-postgres` (postgres:16-alpine) na 5432.
-- `parking-rabbitmq` (rabbitmq:3-management-alpine) na 5672 + UI 15672.
-
-### Scripts do `package.json`
-- `pnpm dev` — nodemon + tsx, hot reload de TS.
-- `pnpm migrate` — `prisma migrate dev`.
-- `pnpm generate` — gera tipos Kysely a partir do schema.
-- `pnpm seed` — popula ParkingLot demo + spots A/B.
-- `pnpm test`, `pnpm test:integration`, `pnpm test:all`.
-- `pnpm pr` — pipeline completa.
+- `parking-postgres` (postgres:16-alpine) :5432
+- `parking-rabbitmq` (rabbitmq:3-management-alpine) :5672 + UI :15672
 
 ---
 
 ## 11. Decisoes de Design
 
-### 11.1 `Vehicle` sempre presente em `ParkingSession`
-Modelo inicial tinha `licensePlate` no proprio agregado. Refatorado para que a placa
-venha de `vehicle.licensePlate()` — evita duplicacao. `Vehicle` e criado on-the-fly
-no `vehicle.entered` (anonimo, sem `Driver`). O CRUD futuro vincula `Driver` depois.
+### 11.1 Sessao pendente em vez de `Vehicle` obrigatorio
+**Por que:** o `vehicle-service` nao tem como descobrir a placa antes do
+spot-level recognition. Forcar `vehicle.entered` a ter placa exigiria reordenar
+o loop do Raspberry. Aceitar `vehicle=null` na sessao e fechar com
+`assignVehicle` no `spot.occupied` deixa o parking flexivel ao contrato real.
 
-### 11.2 4 eventos NAO sao redundantes
-Cada um carrega informacao distinta:
-- `vehicle.entered`: chegada ao perimetro (sem spot ainda).
-- `spot.occupied`: traz `spot_id` + `confidence`.
-- `spot.released`: vaga livre, veiculo ainda no perimetro.
+### 11.2 Correlator: ordem temporal por parking lot
+**Por que:** sem `trackingId` no contrato e sem placa no `vehicle.entered`, a
+unica forma de associar `vehicle.entered` a `spot.occupied` posterior e por
+**ordem temporal** (FIFO por estacionamento). `findOldestPendingVehicle`
+implementa isso. Limita a um vehicle entrando por vez por estacionamento — ok
+no MVP single-tenant. Quando `trackingId` for adicionado ao
+`vehicle-service`, basta trocar a query.
+
+### 11.3 4 eventos NAO sao redundantes
+- `vehicle.entered`: chegada ao perimetro (sem placa).
+- `spot.occupied`: traz placa + spot_id + confidence.
+- `spot.released`: vaga liberada, veiculo ainda no perimetro.
 - `vehicle.exited`: saida final do perimetro.
 
-### 11.3 `/events` e dumb
-O controller so valida com Zod e republica em RabbitMQ. NAO chama App Service direto.
-Beneficios: decoupling, retry/DLQ, ordering por routing key, throughput controlado
-por `prefetch`.
+### 11.4 `/events` e dumb
+Controller so valida com Zod e republica em RabbitMQ. NAO chama App Service direto.
+Decoupling, retry/DLQ, ordering por routing key.
 
-### 11.4 Correlator = `plate`
-Nao ha `trackingId` no `vehicle-service` hoje. Todos os 4 eventos carregam `plate`
-(nullable). Quando `plate=null`, o handler descarta para DLQ (fail-fast).
-
-### 11.5 `ActiveSessionPolicy` removido
-A policy era redundante com a verificacao explicita nos App Services
-(`findActiveByPlate` + descartar duplicata).
-
-### 11.6 `App Services` x `Use Cases`
+### 11.5 `App Services` x `Use Cases`
 - `app/services/` (bind em `Services.ts`) — orquestradores chamados pelos handlers.
-- `app/usecases/` (bind em `Usecases.ts`) — RESERVADO para fluxos administrativos
-  manuais (correcao manual, consultas) que serao adicionados em sprint futura.
+- `app/usecases/` reservado para fluxos administrativos manuais (sprint futura).
 
 ---
 
 ## 12. Limitacoes Conhecidas e Proximos Passos
 
-### Fora do escopo desta sprint
-- CRUD HTTP de Driver/Vehicle/ParkingLot/ParkingSpot (proximo plano).
-- Auth.
-- Frontend.
-- Roteamento por `camera_id` quando o `vehicle-service` enviar.
-- Substituicao do `LoggerDomainEventPublisher` por publisher RabbitMQ separado para
-  domain events (Sprint 6).
-
 ### Cenarios degradados ja tratados
 | Cenario | Comportamento |
 |---|---|
-| `plate=null` | DLQ (`InvalidRecognitionPlateError`) |
-| `spot.occupied` sem `vehicle.entered` previo | App Service cria sessao via `enter()` no mesmo passo |
-| `vehicle.exited` sem sessao ativa | DLQ (`ActiveSessionNotFoundError`) |
-| `spot.released` sem sessao ativa | DLQ (`ActiveSessionNotFoundError`) |
-| Duplicata `vehicle.entered` | descartada por idempotencia (`findActiveByPlate`) |
+| `vehicle.entered` com `plate=null` | cria sessao pendente — OK |
+| `spot.occupied` com `plate=null` | DLQ (`InvalidRecognitionPlateError`) |
+| `spot.occupied` sem sessao pendente | cria sessao via `enter()` no mesmo passo |
+| `vehicle.exited` com `plate=null` | fallback `findMostRecentActive` |
+| `spot.released` sem sessao | DLQ |
+| Duplicata `vehicle.entered` (mesma placa) | descartada (`duplicate-discarded`) |
 | `finish()` sem `releaseSpot` previo | aggregate libera spot defensivamente |
-| Falha do handler | retry 3x via `x-death`; depois DLQ |
+| Falha do handler | retry 3x; depois DLQ |
 
----
+### Limitacoes
+- **Drive-through sem OCR**: se o veiculo entra e sai sem nunca parar em vaga,
+  a sessao termina com `vehicle_id=null`. Documenta a passagem mas nao
+  identifica o veiculo.
+- **Two pendings concorrentes**: se dois veiculos entram em sequencia muito
+  rapida antes do spot-level identificar nenhum, a ordem FIFO pode atribuir a
+  placa errada. Inviavel sem `trackingId` ou multi-camera context.
 
-## 13. Cronologia da Sprint
-
-```mermaid
-gantt
-    title Sprint 5 - Eventos
-    dateFormat YYYY-MM-DD
-    section Fase 1 — Persistencia
-    Refatoracao do dominio          :done, d1, 2026-04-30, 1d
-    Schema Prisma + migration       :done, d2, after d1, 1d
-    Mappers + Repos Kysely          :done, d3, after d2, 1d
-    Testes integracao Postgres      :done, d4, after d3, 1d
-    section Fase 2 — App Services
-    In-memory repos + factories     :done, d5, after d4, 1d
-    4 App Services + testes unit    :done, d6, after d5, 1d
-    section Fase 3 — Mensageria
-    RabbitMQ infra                  :done, d7, after d6, 1d
-    Smoke RabbitMQ                  :done, d8, after d7, 1d
-    section Fase 4 — HTTP + Bootstrap
-    Handlers + DI                   :done, d9, after d8, 1d
-    Controller /events + error handler :done, d10, after d9, 1d
-    Bootstrap + smoke E2E           :done, d11, after d10, 1d
-```
-
----
-
-## 14. Comandos Cheat-Sheet
-
-```bash
-# Subir infra
-docker compose up -d
-
-# Aplicar schema
-pnpm migrate
-pnpm generate
-
-# Popular dados
-pnpm seed
-
-# Rodar servico
-pnpm dev
-
-# Testar
-pnpm test                # unit
-pnpm test:integration    # integration (precisa docker up)
-pnpm pr                  # pipeline completa
-
-# Inspecao
-docker exec parking-postgres psql -U parking -d parking
-# RabbitMQ UI: http://localhost:15672 (guest/guest)
-```
+### Fora do escopo desta sprint
+- CRUD HTTP de Driver/Vehicle/ParkingLot/ParkingSpot.
+- Auth.
+- Frontend.
+- `trackingId` no `vehicle-service` (eliminaria a heuristica FIFO).
+- Roteamento por `camera_id` quando o vehicle-service enviar.
+- Substituir `LoggerDomainEventPublisher` por publisher RabbitMQ (Sprint 6).
