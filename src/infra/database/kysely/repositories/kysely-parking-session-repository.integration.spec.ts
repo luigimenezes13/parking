@@ -65,6 +65,16 @@ function makeSpot(code: string): ParkingSpot {
   });
 }
 
+function enterSession(vehicle: Vehicle | null, entryAt: Date): ParkingSession {
+  const session = ParkingSession.enter({
+    parkingLotId: PARKING_LOT_ID,
+    vehicle,
+    entryAt,
+  });
+  session.pullDomainEvents();
+  return session;
+}
+
 describe('KyselyParkingSessionRepository', () => {
   beforeEach(async () => {
     await truncateAllTables();
@@ -80,16 +90,12 @@ describe('KyselyParkingSessionRepository', () => {
     const vehicle = makeAnonymousVehicle('ABC1D23');
     await vehicles.save(vehicle);
 
-    const session = ParkingSession.enter({
-      vehicle,
-      entryAt: new Date('2026-04-30T10:00:00Z'),
-    });
-    session.pullDomainEvents();
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     await sessions.save(session);
 
     const stored = await sessions.findById(session.id());
 
-    expect(stored?.licensePlate().value()).toBe('ABC1D23');
+    expect(stored?.licensePlate()?.value()).toBe('ABC1D23');
     expect(stored?.spot()).toBeNull();
     expect(stored?.isActive()).toBe(true);
   });
@@ -98,8 +104,7 @@ describe('KyselyParkingSessionRepository', () => {
     const { sessions, vehicles } = makeRepositories();
     const vehicle = makeAnonymousVehicle('ABC1D23');
     await vehicles.save(vehicle);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
-    session.pullDomainEvents();
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     await sessions.save(session);
 
     const stored = await sessions.findActiveByPlate(LicensePlateVO.from('ABC1D23'));
@@ -111,7 +116,7 @@ describe('KyselyParkingSessionRepository', () => {
     const { sessions, vehicles } = makeRepositories();
     const vehicle = makeAnonymousVehicle('ABC1D23');
     await vehicles.save(vehicle);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     session.finish({ exitAt: new Date('2026-04-30T11:00:00Z') });
     session.pullDomainEvents();
     await sessions.save(session);
@@ -128,7 +133,7 @@ describe('KyselyParkingSessionRepository', () => {
     await vehicles.save(vehicle);
     await spots.save(spot);
 
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
     session.pullDomainEvents();
     await sessions.save(session);
@@ -146,7 +151,7 @@ describe('KyselyParkingSessionRepository', () => {
     const spot = makeSpot('A');
     await vehicles.save(vehicle);
     await spots.save(spot);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
     session.pullDomainEvents();
     await sessions.save(session);
@@ -162,7 +167,7 @@ describe('KyselyParkingSessionRepository', () => {
     const spot = makeSpot('A');
     await vehicles.save(vehicle);
     await spots.save(spot);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
     await sessions.save(session);
     session.pullDomainEvents();
@@ -180,7 +185,7 @@ describe('KyselyParkingSessionRepository', () => {
     const spot = makeSpot('A');
     await vehicles.save(vehicle);
     await spots.save(spot);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
     session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
     session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
     session.finish({ exitAt: new Date('2026-04-30T11:00:30Z') });
@@ -191,5 +196,56 @@ describe('KyselyParkingSessionRepository', () => {
     expect(stored?.isFinished()).toBe(true);
     expect(stored?.spot()?.id().equals(spot.id())).toBe(true);
     expect(stored?.exitAt()).not.toBeNull();
+  });
+
+  it('should persist a pending session without vehicle and find it via findOldestPendingVehicle', async () => {
+    const { sessions } = makeRepositories();
+    const session = enterSession(null, new Date('2026-04-30T10:00:00Z'));
+    await sessions.save(session);
+
+    const stored = await sessions.findOldestPendingVehicle(PARKING_LOT_ID);
+
+    expect(stored?.id().equals(session.id())).toBe(true);
+    expect(stored?.vehicle()).toBeNull();
+  });
+
+  it('should return the oldest pending session when multiple exist for the same lot', async () => {
+    const { sessions } = makeRepositories();
+    const older = enterSession(null, new Date('2026-04-30T10:00:00Z'));
+    const newer = enterSession(null, new Date('2026-04-30T10:30:00Z'));
+    await sessions.save(older);
+    await sessions.save(newer);
+
+    const stored = await sessions.findOldestPendingVehicle(PARKING_LOT_ID);
+
+    expect(stored?.id().equals(older.id())).toBe(true);
+  });
+
+  it('should ignore sessions that already have a vehicle when looking for pending ones', async () => {
+    const { sessions, vehicles } = makeRepositories();
+    const vehicle = makeAnonymousVehicle('ABC1D23');
+    await vehicles.save(vehicle);
+    const completed = enterSession(vehicle, new Date('2026-04-30T10:00:00Z'));
+    await sessions.save(completed);
+
+    const stored = await sessions.findOldestPendingVehicle(PARKING_LOT_ID);
+
+    expect(stored).toBeNull();
+  });
+
+  it('should return the most recent active session for the lot', async () => {
+    const { sessions, vehicles } = makeRepositories();
+    const vehicleA = makeAnonymousVehicle('ABC1D23');
+    const vehicleB = makeAnonymousVehicle('XYZ9K88');
+    await vehicles.save(vehicleA);
+    await vehicles.save(vehicleB);
+    const older = enterSession(vehicleA, new Date('2026-04-30T10:00:00Z'));
+    const newer = enterSession(vehicleB, new Date('2026-04-30T10:30:00Z'));
+    await sessions.save(older);
+    await sessions.save(newer);
+
+    const stored = await sessions.findMostRecentActive(PARKING_LOT_ID);
+
+    expect(stored?.id().equals(newer.id())).toBe(true);
   });
 });

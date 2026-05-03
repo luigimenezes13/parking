@@ -40,7 +40,11 @@ async function seedActiveSessionWithSpot(
     parkingLotId: setup.resolver.resolveDefault(),
     licensePlate: LicensePlateVO.from(plate),
   });
-  const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+  const session = ParkingSession.enter({
+    parkingLotId: setup.resolver.resolveDefault(),
+    vehicle,
+    entryAt: new Date('2026-04-30T10:00:00Z'),
+  });
   session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
   session.pullDomainEvents();
   await setup.sessions.save(session);

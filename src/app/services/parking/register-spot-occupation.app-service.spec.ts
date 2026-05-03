@@ -53,7 +53,11 @@ describe('RegisterSpotOccupationAppService', () => {
       licensePlate: LicensePlateVO.from('ABC1D23'),
     });
     await setup.vehicles.save(vehicle);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = ParkingSession.enter({
+      parkingLotId: setup.resolver.resolveDefault(),
+      vehicle,
+      entryAt: new Date('2026-04-30T10:00:00Z'),
+    });
     session.pullDomainEvents();
     await setup.sessions.save(session);
 
@@ -91,7 +95,11 @@ describe('RegisterSpotOccupationAppService', () => {
       licensePlate: LicensePlateVO.from('ABC1D23'),
     });
     await setup.vehicles.save(vehicle);
-    const session = ParkingSession.enter({ vehicle, entryAt: new Date('2026-04-30T10:00:00Z') });
+    const session = ParkingSession.enter({
+      parkingLotId: setup.resolver.resolveDefault(),
+      vehicle,
+      entryAt: new Date('2026-04-30T10:00:00Z'),
+    });
     session.pullDomainEvents();
     await setup.sessions.save(session);
 

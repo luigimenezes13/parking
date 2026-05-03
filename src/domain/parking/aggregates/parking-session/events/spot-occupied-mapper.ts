@@ -14,18 +14,19 @@ export const spotOccupiedMapper: DomainEventMapper<
 > = {
   toEvent(session: ParkingSession, context: SpotOccupiedContext): SpotOccupied {
     const spot = session.spot();
-
     if (!spot) {
       throw new SessionWithoutSpotError(session.id().value());
     }
+
+    const vehicle = session.vehicle();
 
     return Object.freeze({
       eventName: 'parking.session.spot-occupied',
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        licensePlate: session.licensePlate().value(),
+        vehicleId: vehicle?.id().value() ?? null,
+        licensePlate: vehicle?.licensePlate().value() ?? null,
         spotId: spot.id().value(),
         spotCode: spot.code().value(),
         occupiedAt: new Date(context.occupiedAt.getTime()),

@@ -4,13 +4,15 @@ import { type SessionStarted } from '@domain/parking/aggregates/parking-session/
 
 export const sessionStartedMapper: DomainEventMapper<ParkingSession, SessionStarted> = {
   toEvent(session: ParkingSession): SessionStarted {
+    const vehicle = session.vehicle();
     return Object.freeze({
       eventName: 'parking.session.started',
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
-        vehicleId: session.vehicle().id().value(),
-        licensePlate: session.licensePlate().value(),
+        parkingLotId: session.parkingLotId().value(),
+        vehicleId: vehicle?.id().value() ?? null,
+        licensePlate: vehicle?.licensePlate().value() ?? null,
         entryAt: session.entryAt(),
       }),
     });

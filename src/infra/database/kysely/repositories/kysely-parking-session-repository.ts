@@ -48,6 +48,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
         .values(sessionRow)
         .onConflict((conflict) =>
           conflict.column('id').doUpdateSet({
+            vehicle_id: sessionRow.vehicle_id,
             spot_id: sessionRow.spot_id,
             status: sessionRow.status,
             spot_released_at: sessionRow.spot_released_at,
@@ -79,6 +80,27 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     );
   }
 
+  async findOldestPendingVehicle(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null> {
+    return this.queryHydratedSession((trx) =>
+      this.baseSelect(trx)
+        .where('s.status', '=', 'ACTIVE')
+        .where('s.parking_lot_id', '=', parkingLotId.value())
+        .where('s.vehicle_id', 'is', null)
+        .orderBy('s.entry_at', 'asc')
+        .limit(1),
+    );
+  }
+
+  async findMostRecentActive(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null> {
+    return this.queryHydratedSession((trx) =>
+      this.baseSelect(trx)
+        .where('s.status', '=', 'ACTIVE')
+        .where('s.parking_lot_id', '=', parkingLotId.value())
+        .orderBy('s.entry_at', 'desc')
+        .limit(1),
+    );
+  }
+
   private async queryHydratedSession(
     builder: (database: Kysely<Database>) => ReturnType<typeof this.baseSelect>,
   ): Promise<ParkingSession | null> {
@@ -94,10 +116,11 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
   private baseSelect(trx: Kysely<Database> | Transaction<Database>) {
     return trx
       .selectFrom('parking_sessions as s')
-      .innerJoin('vehicles as v', 'v.id', 's.vehicle_id')
+      .leftJoin('vehicles as v', 'v.id', 's.vehicle_id')
       .leftJoin('parking_spots as p', 'p.id', 's.spot_id')
       .select([
         's.id as session_id',
+        's.parking_lot_id as session_parking_lot_id',
         's.vehicle_id as session_vehicle_id',
         's.spot_id as session_spot_id',
         's.status as session_status',
@@ -121,9 +144,23 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
   }
 
   private toHydrationRow(row: HydratedRow): ParkingSessionHydrationRow {
+    const vehicle =
+      row.vehicle_id && row.vehicle_parking_lot_id && row.vehicle_license_plate
+        ? {
+            id: row.vehicle_id,
+            driver_id: row.vehicle_driver_id,
+            parking_lot_id: row.vehicle_parking_lot_id,
+            license_plate: row.vehicle_license_plate,
+            brand: row.vehicle_brand,
+            model: row.vehicle_model,
+            color: row.vehicle_color,
+          }
+        : null;
+
     return {
       session: {
         id: row.session_id,
+        parking_lot_id: row.session_parking_lot_id,
         vehicle_id: row.session_vehicle_id,
         spot_id: row.session_spot_id,
         status: row.session_status,
@@ -131,15 +168,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
         spot_released_at: row.session_spot_released_at,
         exit_at: row.session_exit_at,
       },
-      vehicle: {
-        id: row.vehicle_id,
-        driver_id: row.vehicle_driver_id,
-        parking_lot_id: row.vehicle_parking_lot_id,
-        license_plate: row.vehicle_license_plate,
-        brand: row.vehicle_brand,
-        model: row.vehicle_model,
-        color: row.vehicle_color,
-      },
+      vehicle,
       spot:
         row.spot_id && row.spot_parking_lot_id && row.spot_code
           ? {
@@ -157,16 +186,17 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
 
 interface HydratedRow {
   session_id: string;
-  session_vehicle_id: string;
+  session_parking_lot_id: string;
+  session_vehicle_id: string | null;
   session_spot_id: string | null;
   session_status: 'ACTIVE' | 'FINISHED';
   session_entry_at: Date;
   session_spot_released_at: Date | null;
   session_exit_at: Date | null;
-  vehicle_id: string;
+  vehicle_id: string | null;
   vehicle_driver_id: string | null;
-  vehicle_parking_lot_id: string;
-  vehicle_license_plate: string;
+  vehicle_parking_lot_id: string | null;
+  vehicle_license_plate: string | null;
   vehicle_brand: string | null;
   vehicle_model: string | null;
   vehicle_color: string | null;

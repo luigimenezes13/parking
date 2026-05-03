@@ -16,7 +16,9 @@ export class InMemoryParkingSessionRepository implements ParkingSessionRepositor
 
   async findActiveByPlate(licensePlate: LicensePlateVO): Promise<ParkingSession | null> {
     for (const session of this.sessions.values()) {
-      if (session.isActive() && session.licensePlate().equals(licensePlate)) {
+      if (!session.isActive()) continue;
+      const plate = session.licensePlate();
+      if (plate && plate.equals(licensePlate)) {
         return session;
       }
     }
@@ -32,5 +34,30 @@ export class InMemoryParkingSessionRepository implements ParkingSessionRepositor
       }
     }
     return null;
+  }
+
+  async findOldestPendingVehicle(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null> {
+    let oldest: ParkingSession | null = null;
+    for (const session of this.sessions.values()) {
+      if (!session.isActive()) continue;
+      if (!session.parkingLotId().equals(parkingLotId)) continue;
+      if (session.vehicle() !== null) continue;
+      if (!oldest || session.entryAt().getTime() < oldest.entryAt().getTime()) {
+        oldest = session;
+      }
+    }
+    return oldest;
+  }
+
+  async findMostRecentActive(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null> {
+    let mostRecent: ParkingSession | null = null;
+    for (const session of this.sessions.values()) {
+      if (!session.isActive()) continue;
+      if (!session.parkingLotId().equals(parkingLotId)) continue;
+      if (!mostRecent || session.entryAt().getTime() > mostRecent.entryAt().getTime()) {
+        mostRecent = session;
+      }
+    }
+    return mostRecent;
   }
 }
