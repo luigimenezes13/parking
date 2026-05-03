@@ -41,12 +41,13 @@ describe('Recognition flow end-to-end through RabbitMQ', () => {
   it('should route a vehicle.entered payload to its dedicated queue and trigger the handler', async () => {
     const topology = buildRecognitionTopology(TEST_EXCHANGE);
     const received: RecognitionEventPayload[] = [];
+    const vehicleEnteredQueue = topology.queues.find((q) => q.routingKey === 'vehicle.entered')!.queue;
 
     await startRecognitionConsumers(
       channel,
       [
         {
-          queue: 'q.recognition.vehicle.entered',
+          queue: vehicleEnteredQueue,
           handler: async (payload) => {
             received.push(payload);
           },
