@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
-import { ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
-import { Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { makeParkingSpot } from '@domain/parking/__tests__/factories/parking-spot.factory.ts';
+import { makeVehicle } from '@domain/parking/__tests__/factories/vehicle.factory.ts';
+import { makeActiveSession } from '@domain/parking/__tests__/factories/parking-session.factory.ts';
 import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositories/in-memory-parking-session-repository.ts';
 import { InMemoryParkingSpotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-spot-repository.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
@@ -48,17 +48,14 @@ describe('RegisterSpotOccupationAppService', () => {
   });
 
   it('should assign the spot to the existing active session and persist the change', async () => {
-    const vehicle = Vehicle.registerAnonymous({
-      parkingLotId: setup.resolver.resolveDefault(),
-      licensePlate: LicensePlateVO.from('ABC1D23'),
-    });
+    const parkingLotId = setup.resolver.resolveDefault();
+    const vehicle = makeVehicle({ parkingLotId, licensePlate: 'ABC1D23' });
     await setup.vehicles.save(vehicle);
-    const session = ParkingSession.enter({
-      parkingLotId: setup.resolver.resolveDefault(),
+    const session = makeActiveSession({
+      parkingLotId,
       vehicle,
       entryAt: new Date('2026-04-30T10:00:00Z'),
     });
-    session.pullDomainEvents();
     await setup.sessions.save(session);
 
     await setup.service.execute({
@@ -90,17 +87,14 @@ describe('RegisterSpotOccupationAppService', () => {
   });
 
   it('should publish a SpotOccupied domain event', async () => {
-    const vehicle = Vehicle.registerAnonymous({
-      parkingLotId: setup.resolver.resolveDefault(),
-      licensePlate: LicensePlateVO.from('ABC1D23'),
-    });
+    const parkingLotId = setup.resolver.resolveDefault();
+    const vehicle = makeVehicle({ parkingLotId, licensePlate: 'ABC1D23' });
     await setup.vehicles.save(vehicle);
-    const session = ParkingSession.enter({
-      parkingLotId: setup.resolver.resolveDefault(),
+    const session = makeActiveSession({
+      parkingLotId,
       vehicle,
       entryAt: new Date('2026-04-30T10:00:00Z'),
     });
-    session.pullDomainEvents();
     await setup.sessions.save(session);
 
     await setup.service.execute({

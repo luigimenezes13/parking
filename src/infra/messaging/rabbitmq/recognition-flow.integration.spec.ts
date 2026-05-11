@@ -6,47 +6,55 @@ import { RabbitMQRecognitionEventPublisher } from '@infra/messaging/rabbitmq/rab
 import {
   buildRecognitionTopology,
   declareRecognitionTopology,
+  type RecognitionTopology,
 } from '@infra/messaging/rabbitmq/topology.ts';
 import { startRecognitionConsumers } from '@infra/messaging/rabbitmq/recognition-event-consumer.ts';
 
 const TEST_EXCHANGE = 'test.recognition.events';
 const RABBITMQ_URL = process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672';
 
-let connection: ChannelModel;
-let channel: Channel;
+interface Setup {
+  connection: ChannelModel;
+  channel: Channel;
+  topology: RecognitionTopology;
+  publisher: RabbitMQRecognitionEventPublisher;
+}
 
-async function purgeAllQueues(): Promise<void> {
+async function makeSetup(): Promise<Setup> {
+  const connection = await connect(RABBITMQ_URL);
+  const channel = await connection.createChannel();
+
   const topology = buildRecognitionTopology(TEST_EXCHANGE);
+  await declareRecognitionTopology(channel, topology);
   for (const binding of topology.queues) {
     await channel.purgeQueue(binding.queue).catch(() => undefined);
     await channel.purgeQueue(binding.deadLetterQueue).catch(() => undefined);
   }
+
+  const publisher = new RabbitMQRecognitionEventPublisher(channel, topology);
+  return { connection, channel, topology, publisher };
 }
 
 describe('Recognition flow end-to-end through RabbitMQ', () => {
-  beforeEach(async () => {
-    connection = await connect(RABBITMQ_URL);
-    channel = await connection.createChannel();
+  let setup: Setup;
 
-    const topology = buildRecognitionTopology(TEST_EXCHANGE);
-    await declareRecognitionTopology(channel, topology);
-    await purgeAllQueues();
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   afterEach(async () => {
-    if (channel) await channel.close().catch(() => undefined);
-    if (connection) await connection.close().catch(() => undefined);
+    if (setup.channel) await setup.channel.close().catch(() => undefined);
+    if (setup.connection) await setup.connection.close().catch(() => undefined);
   });
 
   it('should route a vehicle.entered payload to its dedicated queue and trigger the handler', async () => {
-    const topology = buildRecognitionTopology(TEST_EXCHANGE);
     const received: RecognitionEventPayload[] = [];
-    const vehicleEnteredQueue = topology.queues.find(
+    const vehicleEnteredQueue = setup.topology.queues.find(
       (q) => q.routingKey === 'vehicle.entered',
     )!.queue;
 
     await startRecognitionConsumers(
-      channel,
+      setup.channel,
       [
         {
           queue: vehicleEnteredQueue,
@@ -58,8 +66,7 @@ describe('Recognition flow end-to-end through RabbitMQ', () => {
       10,
     );
 
-    const publisher = new RabbitMQRecognitionEventPublisher(channel, topology);
-    await publisher.publish({
+    await setup.publisher.publish({
       event: 'vehicle.entered',
       plate: 'ABC1D23',
       timestamp: new Date().toISOString(),
@@ -72,7 +79,6 @@ describe('Recognition flow end-to-end through RabbitMQ', () => {
   });
 
   it('should route each event type to its matching queue', async () => {
-    const topology = buildRecognitionTopology(TEST_EXCHANGE);
     const received: Record<string, RecognitionEventPayload[]> = {
       'vehicle.entered': [],
       'spot.occupied': [],
@@ -81,8 +87,8 @@ describe('Recognition flow end-to-end through RabbitMQ', () => {
     };
 
     await startRecognitionConsumers(
-      channel,
-      topology.queues.map((binding) => ({
+      setup.channel,
+      setup.topology.queues.map((binding) => ({
         queue: binding.queue,
         handler: async (payload) => {
           received[payload.event]?.push(payload);
@@ -91,24 +97,23 @@ describe('Recognition flow end-to-end through RabbitMQ', () => {
       10,
     );
 
-    const publisher = new RabbitMQRecognitionEventPublisher(channel, topology);
     const timestamp = new Date().toISOString();
 
-    await publisher.publish({ event: 'vehicle.entered', plate: 'ABC1D23', timestamp });
-    await publisher.publish({
+    await setup.publisher.publish({ event: 'vehicle.entered', plate: 'ABC1D23', timestamp });
+    await setup.publisher.publish({
       event: 'spot.occupied',
       spot_id: 'A',
       plate: 'ABC1D23',
       confidence: 0.9,
       timestamp,
     });
-    await publisher.publish({
+    await setup.publisher.publish({
       event: 'spot.released',
       spot_id: 'A',
       plate: 'ABC1D23',
       timestamp,
     });
-    await publisher.publish({ event: 'vehicle.exited', plate: 'ABC1D23', timestamp });
+    await setup.publisher.publish({ event: 'vehicle.exited', plate: 'ABC1D23', timestamp });
 
     await waitFor(() => Object.values(received).every((bucket) => bucket.length === 1), 3000);
 

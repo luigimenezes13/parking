@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Driver } from '@domain/parking/entities/driver.ts';
-import { ParkingLot } from '@domain/parking/entities/parking-lot.ts';
-import { Vehicle } from '@domain/parking/entities/vehicle.ts';
+import { type Driver } from '@domain/parking/entities/driver.ts';
+import { type ParkingLot } from '@domain/parking/entities/parking-lot.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
@@ -12,6 +11,9 @@ import { RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
 import { DuplicateVehicleLicensePlateError } from '@app/exceptions/vehicle/duplicate-vehicle-license-plate-error.ts';
+import { makeDriver } from '@domain/parking/__tests__/factories/driver.factory.ts';
+import { makeParkingLot } from '@domain/parking/__tests__/factories/parking-lot.factory.ts';
+import { makeVehicle } from '@domain/parking/__tests__/factories/vehicle.factory.ts';
 
 interface Setup {
   vehicles: InMemoryVehicleRepository;
@@ -27,15 +29,10 @@ async function makeSetup(): Promise<Setup> {
   const drivers = new InMemoryDriverRepository();
   const parkingLots = new InMemoryParkingLotRepository();
 
-  const lot = ParkingLot.register({ name: 'Lot', address: 'addr', totalCapacity: 50 });
+  const lot = makeParkingLot({ name: 'Lot', address: 'addr', totalCapacity: 50 });
   await parkingLots.save(lot);
 
-  const driver = Driver.register({
-    cnh: '11111111111',
-    name: 'Maria',
-    email: 'maria@example.com',
-    phone: '+5511999999999',
-  });
+  const driver = makeDriver({ cnh: '11111111111', name: 'Maria', email: 'maria@example.com' });
   await drivers.save(driver);
 
   const usecase = new RegisterVehicleUseCase(vehicles, drivers, parkingLots);
@@ -106,10 +103,7 @@ describe('RegisterVehicleUseCase', () => {
 
   it('throws DuplicateVehicleLicensePlateError when plate already exists', async () => {
     await setup.vehicles.save(
-      Vehicle.registerAnonymous({
-        parkingLotId: setup.lot.id(),
-        licensePlate: LicensePlateVO.from('ABC1D23'),
-      }),
+      makeVehicle({ parkingLotId: setup.lot.id(), licensePlate: 'ABC1D23' }),
     );
 
     await expect(

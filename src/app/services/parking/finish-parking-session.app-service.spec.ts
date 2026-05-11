@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
-import { ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
-import { Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { makeParkingSpot } from '@domain/parking/__tests__/factories/parking-spot.factory.ts';
+import { makeVehicle } from '@domain/parking/__tests__/factories/vehicle.factory.ts';
+import { makeActiveSession } from '@domain/parking/__tests__/factories/parking-session.factory.ts';
 import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositories/in-memory-parking-session-repository.ts';
 import { InMemoryDomainEventPublisher } from '@app/tests/factories/in-memory-domain-event-publisher.ts';
 import { StaticParkingLotResolver } from '@app/tests/factories/static-parking-lot-resolver.ts';
@@ -27,16 +27,14 @@ function makeSetup(): Setup {
 }
 
 async function seedSession(setup: Setup, plate: string): Promise<{ sessionId: string }> {
-  const vehicle = Vehicle.registerAnonymous({
-    parkingLotId: setup.resolver.resolveDefault(),
-    licensePlate: LicensePlateVO.from(plate),
-  });
-  const session = ParkingSession.enter({
-    parkingLotId: setup.resolver.resolveDefault(),
+  const parkingLotId = setup.resolver.resolveDefault();
+  const vehicle = makeVehicle({ parkingLotId, licensePlate: plate });
+  const session = makeActiveSession({
+    parkingLotId,
     vehicle,
     entryAt: new Date('2026-04-30T10:00:00Z'),
   });
-  const spot = makeParkingSpot({ parkingLotId: setup.resolver.resolveDefault(), code: 'A' });
+  const spot = makeParkingSpot({ parkingLotId, code: 'A' });
   session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
   session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
   session.pullDomainEvents();

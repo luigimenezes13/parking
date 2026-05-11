@@ -8,6 +8,7 @@ export interface MakeVehicleOverrides {
   brand?: string | null;
   model?: string | null;
   color?: string | null;
+  driverId?: UniqueIdentifier;
 }
 
 export function makeVehicle(overrides: MakeVehicleOverrides = {}): Vehicle {
@@ -16,11 +17,27 @@ export function makeVehicle(overrides: MakeVehicleOverrides = {}): Vehicle {
       ? overrides.licensePlate
       : LicensePlateVO.from(overrides.licensePlate ?? 'ABC1D23');
 
+  const parkingLotId = overrides.parkingLotId ?? UniqueIdentifier.create();
+  const brand = overrides.brand ?? null;
+  const model = overrides.model ?? null;
+  const color = overrides.color ?? null;
+
+  if (overrides.driverId !== undefined) {
+    return Vehicle.register({
+      driverId: overrides.driverId,
+      parkingLotId,
+      licensePlate,
+      brand,
+      model,
+      color,
+    });
+  }
+
   return Vehicle.registerAnonymous({
-    parkingLotId: overrides.parkingLotId ?? UniqueIdentifier.create(),
+    parkingLotId,
     licensePlate,
-    brand: overrides.brand ?? null,
-    model: overrides.model ?? null,
-    color: overrides.color ?? null,
+    brand,
+    model,
+    color,
   });
 }

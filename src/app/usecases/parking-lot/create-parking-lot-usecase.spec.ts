@@ -5,17 +5,26 @@ import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/
 import { CreateParkingLotUseCase } from '@app/usecases/parking-lot/create-parking-lot-usecase.ts';
 import { CreateParkingLotRequest } from '@app/dto/inputs/parking-lot/create-parking-lot-input.ts';
 
-describe('CreateParkingLotUseCase', () => {
-  let parkingLots: InMemoryParkingLotRepository;
-  let usecase: CreateParkingLotUseCase;
+interface Setup {
+  parkingLots: InMemoryParkingLotRepository;
+  usecase: CreateParkingLotUseCase;
+}
 
-  beforeEach(() => {
-    parkingLots = new InMemoryParkingLotRepository();
-    usecase = new CreateParkingLotUseCase(parkingLots);
+async function makeSetup(): Promise<Setup> {
+  const parkingLots = new InMemoryParkingLotRepository();
+  const usecase = new CreateParkingLotUseCase(parkingLots);
+  return { parkingLots, usecase };
+}
+
+describe('CreateParkingLotUseCase', () => {
+  let setup: Setup;
+
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('persists a new parking lot and returns the generated identifier', async () => {
-    const result = await usecase.execute(
+    const result = await setup.usecase.execute(
       new CreateParkingLotRequest({
         name: 'Lot A',
         address: 'R. Exemplo 100',
@@ -24,7 +33,9 @@ describe('CreateParkingLotUseCase', () => {
     );
 
     expect(result.parkingLotId).toBeDefined();
-    const stored = await parkingLots.findById(UniqueIdentifier.fromExisting(result.parkingLotId));
+    const stored = await setup.parkingLots.findById(
+      UniqueIdentifier.fromExisting(result.parkingLotId),
+    );
     expect(stored?.name()).toBe('Lot A');
     expect(stored?.totalCapacity()).toBe(50);
     expect(stored?.isActive()).toBe(true);
