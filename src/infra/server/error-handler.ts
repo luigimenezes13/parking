@@ -43,6 +43,9 @@ function mapStatus(error: Error): number {
   if (error.name.startsWith('Duplicate')) {
     return 409;
   }
+  if (error.name.includes('HasActive')) {
+    return 409;
+  }
   if (error instanceof DomainError) {
     return 422;
   }
