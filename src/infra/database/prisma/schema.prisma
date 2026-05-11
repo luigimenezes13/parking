@@ -24,6 +24,15 @@ enum SessionStatus {
   FINISHED
 }
 
+enum SpotType {
+  REGULAR
+  COMPACT
+  LARGE
+  MOTORCYCLE
+  ACCESSIBLE
+  ELECTRIC
+}
+
 model Driver {
   id            String    @id @db.Uuid
   cnh           String    @unique
@@ -60,7 +69,10 @@ model ParkingSpot {
   parkingLotId  String     @db.Uuid @map("parking_lot_id")
   code          String
   floor         Int
+  row           Int        @default(1)
+  column        Int        @default(1)
   isCovered     Boolean    @map("is_covered")
+  spotType      SpotType   @default(REGULAR) @map("spot_type")
   status        SpotStatus @default(FREE)
   createdAt     DateTime   @default(now()) @db.Timestamptz(3) @map("created_at")
   updatedAt     DateTime   @updatedAt @db.Timestamptz(3) @map("updated_at")
@@ -70,6 +82,7 @@ model ParkingSpot {
   sessions   ParkingSession[]
 
   @@unique([parkingLotId, code])
+  @@unique([parkingLotId, floor, row, column])
   @@map("parking_spots")
 }
 
