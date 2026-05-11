@@ -10,6 +10,7 @@ import { GetParkingLotByIdUseCase } from '@app/usecases/parking-lot/get-parking-
 import { ListParkingLotsUseCase } from '@app/usecases/parking-lot/list-parking-lots-usecase.ts';
 import { UpdateParkingLotInfoUseCase } from '@app/usecases/parking-lot/update-parking-lot-info-usecase.ts';
 import { DeactivateParkingLotUseCase } from '@app/usecases/parking-lot/deactivate-parking-lot-usecase.ts';
+import { GetParkingLotMapUseCase } from '@app/usecases/parking-lot/get-parking-lot-map-usecase.ts';
 import { RegisterVehicleUseCase } from '@app/usecases/vehicle/register-vehicle-usecase.ts';
 import { GetVehicleByIdUseCase } from '@app/usecases/vehicle/get-vehicle-by-id-usecase.ts';
 import { ListVehiclesByDriverUseCase } from '@app/usecases/vehicle/list-vehicles-by-driver-usecase.ts';
@@ -48,6 +49,7 @@ export function configureUseCases(container: Container): void {
     .bind<DeactivateParkingLotUseCase>(DeactivateParkingLotUseCase)
     .toSelf()
     .inTransientScope();
+  container.bind<GetParkingLotMapUseCase>(GetParkingLotMapUseCase).toSelf().inTransientScope();
 
   // Vehicle
   container.bind<RegisterVehicleUseCase>(RegisterVehicleUseCase).toSelf().inTransientScope();
