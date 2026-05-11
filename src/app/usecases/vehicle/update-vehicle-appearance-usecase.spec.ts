@@ -5,6 +5,7 @@ import { Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
 import { UpdateVehicleAppearanceUseCase } from '@app/usecases/vehicle/update-vehicle-appearance-usecase.ts';
+import { UpdateVehicleAppearanceRequest } from '@app/dto/inputs/vehicle/update-vehicle-appearance-input.ts';
 import { VehicleNotFoundError } from '@app/exceptions/vehicle/vehicle-not-found-error.ts';
 
 describe('UpdateVehicleAppearanceUseCase', () => {
@@ -26,12 +27,14 @@ describe('UpdateVehicleAppearanceUseCase', () => {
     });
     await vehicles.save(vehicle);
 
-    const updated = await usecase.execute({
-      vehicleId: vehicle.id().value(),
-      brand: 'Toyota',
-      model: 'Corolla',
-      color: 'prata',
-    });
+    const updated = await usecase.execute(
+      new UpdateVehicleAppearanceRequest({
+        vehicleId: vehicle.id().value(),
+        brand: 'Toyota',
+        model: 'Corolla',
+        color: 'prata',
+      }),
+    );
 
     expect(updated.brand()).toBe('Toyota');
     expect(updated.model()).toBe('Corolla');
@@ -40,12 +43,14 @@ describe('UpdateVehicleAppearanceUseCase', () => {
 
   it('throws VehicleNotFoundError when missing', async () => {
     await expect(
-      usecase.execute({
-        vehicleId: '00000000-0000-4000-8000-000000000000',
-        brand: 'X',
-        model: 'Y',
-        color: 'Z',
-      }),
+      usecase.execute(
+        new UpdateVehicleAppearanceRequest({
+          vehicleId: '00000000-0000-4000-8000-000000000000',
+          brand: 'X',
+          model: 'Y',
+          color: 'Z',
+        }),
+      ),
     ).rejects.toBeInstanceOf(VehicleNotFoundError);
   });
 });

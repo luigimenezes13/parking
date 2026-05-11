@@ -7,7 +7,6 @@ import { type Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { type VehicleRepository } from '@domain/parking/repositories/vehicle-repository.ts';
 import { VehicleNotFoundError } from '@app/exceptions/vehicle/vehicle-not-found-error.ts';
 
-// TODO: Refactor all inputs to be used as DTOs with Zod validation
 export interface GetVehicleByIdInput {
   vehicleId: string;
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Driver } from '@domain/parking/entities/driver.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { RegisterDriverUseCase } from '@app/usecases/driver/register-driver-usecase.ts';
+import { RegisterDriverRequest } from '@app/dto/inputs/driver/register-driver-input.ts';
 import { DuplicateDriverCnhError } from '@app/exceptions/driver/duplicate-driver-cnh-error.ts';
 import { DuplicateDriverEmailError } from '@app/exceptions/driver/duplicate-driver-email-error.ts';
 
@@ -11,17 +12,20 @@ describe('RegisterDriverUseCase', () => {
   let usecase: RegisterDriverUseCase;
 
   beforeEach(() => {
+    // TODO: Use a factory to create the entities
     drivers = new InMemoryDriverRepository();
     usecase = new RegisterDriverUseCase(drivers);
   });
 
   it('persists a new driver and returns the generated identifier', async () => {
-    const result = await usecase.execute({
-      cnh: '12345678901',
-      name: 'Joao Silva',
-      email: 'joao@example.com',
-      phone: '+5511999999999',
-    });
+    const result = await usecase.execute(
+      new RegisterDriverRequest({
+        cnh: '12345678901',
+        name: 'Joao Silva',
+        email: 'joao@example.com',
+        phone: '+5511999999999',
+      }),
+    );
 
     expect(result.driverId).toBeDefined();
     const stored = await drivers.findByCnh('12345678901');
@@ -40,12 +44,14 @@ describe('RegisterDriverUseCase', () => {
     );
 
     await expect(
-      usecase.execute({
-        cnh: '12345678901',
-        name: 'Second',
-        email: 'second@example.com',
-        phone: '+5511222222222',
-      }),
+      usecase.execute(
+        new RegisterDriverRequest({
+          cnh: '12345678901',
+          name: 'Second',
+          email: 'second@example.com',
+          phone: '+5511222222222',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DuplicateDriverCnhError);
   });
 
@@ -60,12 +66,14 @@ describe('RegisterDriverUseCase', () => {
     );
 
     await expect(
-      usecase.execute({
-        cnh: '22222222222',
-        name: 'Second',
-        email: 'shared@example.com',
-        phone: '+5511222222222',
-      }),
+      usecase.execute(
+        new RegisterDriverRequest({
+          cnh: '22222222222',
+          name: 'Second',
+          email: 'shared@example.com',
+          phone: '+5511222222222',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DuplicateDriverEmailError);
   });
 });

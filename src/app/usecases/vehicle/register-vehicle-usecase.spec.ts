@@ -8,6 +8,7 @@ import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-m
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
 import { RegisterVehicleUseCase } from '@app/usecases/vehicle/register-vehicle-usecase.ts';
+import { RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle-input.ts';
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
 import { DuplicateVehicleLicensePlateError } from '@app/exceptions/vehicle/duplicate-vehicle-license-plate-error.ts';
@@ -50,14 +51,16 @@ describe('RegisterVehicleUseCase', () => {
   });
 
   it('persists a new vehicle with driver', async () => {
-    const result = await setup.usecase.execute({
-      driverId: setup.driver.id().value(),
-      parkingLotId: setup.lot.id().value(),
-      licensePlate: 'ABC1D23',
-      brand: 'Toyota',
-      model: 'Corolla',
-      color: 'prata',
-    });
+    const result = await setup.usecase.execute(
+      new RegisterVehicleRequest({
+        driverId: setup.driver.id().value(),
+        parkingLotId: setup.lot.id().value(),
+        licensePlate: 'ABC1D23',
+        brand: 'Toyota',
+        model: 'Corolla',
+        color: 'prata',
+      }),
+    );
 
     expect(result.vehicleId).toBeDefined();
     const stored = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('ABC1D23'));
@@ -65,10 +68,12 @@ describe('RegisterVehicleUseCase', () => {
   });
 
   it('allows registering without a driver (anonymous)', async () => {
-    const result = await setup.usecase.execute({
-      parkingLotId: setup.lot.id().value(),
-      licensePlate: 'XYZ9K88',
-    });
+    const result = await setup.usecase.execute(
+      new RegisterVehicleRequest({
+        parkingLotId: setup.lot.id().value(),
+        licensePlate: 'XYZ9K88',
+      }),
+    );
 
     const stored = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('XYZ9K88'));
     expect(stored).not.toBeNull();
@@ -78,20 +83,24 @@ describe('RegisterVehicleUseCase', () => {
 
   it('throws ParkingLotNotFoundError when lot does not exist', async () => {
     await expect(
-      setup.usecase.execute({
-        parkingLotId: '00000000-0000-4000-8000-000000000000',
-        licensePlate: 'ABC1D23',
-      }),
+      setup.usecase.execute(
+        new RegisterVehicleRequest({
+          parkingLotId: '00000000-0000-4000-8000-000000000000',
+          licensePlate: 'ABC1D23',
+        }),
+      ),
     ).rejects.toBeInstanceOf(ParkingLotNotFoundError);
   });
 
   it('throws DriverNotFoundError when driver does not exist', async () => {
     await expect(
-      setup.usecase.execute({
-        parkingLotId: setup.lot.id().value(),
-        driverId: '00000000-0000-4000-8000-000000000000',
-        licensePlate: 'ABC1D23',
-      }),
+      setup.usecase.execute(
+        new RegisterVehicleRequest({
+          parkingLotId: setup.lot.id().value(),
+          driverId: '00000000-0000-4000-8000-000000000000',
+          licensePlate: 'ABC1D23',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DriverNotFoundError);
   });
 
@@ -104,10 +113,12 @@ describe('RegisterVehicleUseCase', () => {
     );
 
     await expect(
-      setup.usecase.execute({
-        parkingLotId: setup.lot.id().value(),
-        licensePlate: 'ABC1D23',
-      }),
+      setup.usecase.execute(
+        new RegisterVehicleRequest({
+          parkingLotId: setup.lot.id().value(),
+          licensePlate: 'ABC1D23',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DuplicateVehicleLicensePlateError);
   });
 });
