@@ -14,6 +14,7 @@ import { DriverController } from '@infra/controllers/driver-controller.ts';
 import { ParkingLotController } from '@infra/controllers/parking-lot-controller.ts';
 import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
 import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
+import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -107,6 +108,9 @@ vehicleController.register(server);
 
 const parkingSpotController = container.get(ParkingSpotController);
 parkingSpotController.register(server);
+
+const parkingSessionController = container.get(ParkingSessionController);
+parkingSessionController.register(server);
 
 registerErrorHandler(server);
 

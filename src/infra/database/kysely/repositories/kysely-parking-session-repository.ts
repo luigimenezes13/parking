@@ -101,6 +101,23 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     );
   }
 
+  async findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]> {
+    return this.queryHydratedSessions((trx) =>
+      this.baseSelect(trx)
+        .where('s.status', '=', 'ACTIVE')
+        .where('s.parking_lot_id', '=', parkingLotId.value())
+        .orderBy('s.entry_at', 'asc'),
+    );
+  }
+
+  async findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]> {
+    return this.queryHydratedSessions((trx) =>
+      this.baseSelect(trx)
+        .where('s.vehicle_id', '=', vehicleId.value())
+        .orderBy('s.entry_at', 'desc'),
+    );
+  }
+
   private async queryHydratedSession(
     builder: (database: Kysely<Database>) => ReturnType<typeof this.baseSelect>,
   ): Promise<ParkingSession | null> {
@@ -111,6 +128,13 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     }
 
     return this.sessionMapper.toDomain(this.toHydrationRow(row));
+  }
+
+  private async queryHydratedSessions(
+    builder: (database: Kysely<Database>) => ReturnType<typeof this.baseSelect>,
+  ): Promise<ParkingSession[]> {
+    const rows = await builder(this.database).execute();
+    return rows.map((row) => this.sessionMapper.toDomain(this.toHydrationRow(row)));
   }
 
   private baseSelect(trx: Kysely<Database> | Transaction<Database>) {
