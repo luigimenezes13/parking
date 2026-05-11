@@ -37,4 +37,7 @@ export const TYPES = {
 
   // Event bus (legacy / future)
   EventBus: Symbol('EventBus'),
+
+  // HTTP Controllers (multi-injected)
+  Controller: Symbol('Controller'),
 } as const;

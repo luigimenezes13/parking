@@ -8,14 +8,7 @@ import swaggerUi from '@fastify/swagger-ui';
 
 import { container } from '@infra/di/Container.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { HealthController } from '@infra/controllers/HealthController.ts';
-import { RecognitionEventsController } from '@infra/controllers/RecognitionEventsController.ts';
-import { DriverController } from '@infra/controllers/driver-controller.ts';
-import { ParkingLotController } from '@infra/controllers/parking-lot-controller.ts';
-import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
-import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
-import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
-import { RegisterController } from '@infra/http/register-controller.ts';
+import { registerControllers } from '@infra/server/register-controllers.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -92,14 +85,7 @@ const consumers: RecognitionConsumerBinding[] = [
 ];
 await startRecognitionConsumers(rabbitChannel, consumers, environment.RABBITMQ_PREFETCH);
 
-// TODO: add this to the DI
-RegisterController(server, container.get(HealthController));
-RegisterController(server, container.get(RecognitionEventsController));
-RegisterController(server, container.get(DriverController));
-RegisterController(server, container.get(ParkingLotController));
-RegisterController(server, container.get(VehicleController));
-RegisterController(server, container.get(ParkingSpotController));
-RegisterController(server, container.get(ParkingSessionController));
+registerControllers(server, container);
 
 registerErrorHandler(server);
 
