@@ -7,4 +7,6 @@ export interface VehicleRepository {
   findById(identifier: UniqueIdentifier): Promise<Vehicle | null>;
   findByLicensePlate(licensePlate: LicensePlateVO): Promise<Vehicle | null>;
   findByDriverId(driverId: UniqueIdentifier): Promise<Vehicle[]>;
+  findByParkingLotId(parkingLotId: UniqueIdentifier): Promise<Vehicle[]>;
+  findAll(): Promise<Vehicle[]>;
 }

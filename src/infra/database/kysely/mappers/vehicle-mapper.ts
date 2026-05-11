@@ -8,7 +8,14 @@ import { type Vehicle as VehicleRow } from '@infra/database/types/Types.ts';
 
 export type SelectableVehicle = Pick<
   Selectable<VehicleRow>,
-  'id' | 'driver_id' | 'parking_lot_id' | 'license_plate' | 'brand' | 'model' | 'color'
+  | 'id'
+  | 'driver_id'
+  | 'parking_lot_id'
+  | 'license_plate'
+  | 'brand'
+  | 'model'
+  | 'color'
+  | 'deactivated_at'
 >;
 
 export type InsertableVehicleRow = {
@@ -21,6 +28,7 @@ export type InsertableVehicleRow = {
   color: string | null;
   created_at: Date;
   updated_at: Date;
+  deactivated_at: Date | null;
 };
 
 @injectable()
@@ -34,6 +42,7 @@ export class VehicleMapper {
         brand: row.brand,
         model: row.model,
         color: row.color,
+        deactivatedAt: row.deactivated_at,
       },
       UniqueIdentifier.fromExisting(row.id),
     );
@@ -52,6 +61,7 @@ export class VehicleMapper {
       color: vehicle.color(),
       created_at: now,
       updated_at: now,
+      deactivated_at: vehicle.deactivatedAt(),
     };
   }
 
@@ -60,6 +70,7 @@ export class VehicleMapper {
     brand: string | null;
     model: string | null;
     color: string | null;
+    deactivated_at: Date | null;
     updated_at: Date;
   } {
     return {
@@ -67,6 +78,7 @@ export class VehicleMapper {
       brand: vehicle.brand(),
       model: vehicle.model(),
       color: vehicle.color(),
+      deactivated_at: vehicle.deactivatedAt(),
       updated_at: new Date(),
     };
   }

@@ -4,7 +4,7 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-import type { SpotStatus, SessionStatus } from "./Enums.ts";
+import type { SpotStatus, SessionStatus, SpotType } from "./Enums.ts";
 
 export type Driver = {
     id: string;
@@ -14,6 +14,7 @@ export type Driver = {
     phone: string;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type ParkingLot = {
     id: string;
@@ -22,6 +23,7 @@ export type ParkingLot = {
     total_capacity: number;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type ParkingSession = {
     id: string;
@@ -40,10 +42,14 @@ export type ParkingSpot = {
     parking_lot_id: string;
     code: string;
     floor: number;
+    row: Generated<number>;
+    column: Generated<number>;
     is_covered: boolean;
+    spot_type: Generated<SpotType>;
     status: Generated<SpotStatus>;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type Vehicle = {
     id: string;
@@ -55,6 +61,7 @@ export type Vehicle = {
     color: string | null;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type DB = {
     drivers: Driver;

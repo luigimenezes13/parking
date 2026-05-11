@@ -9,3 +9,12 @@ export const SessionStatus = {
     FINISHED: "FINISHED"
 } as const;
 export type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus];
+export const SpotType = {
+    REGULAR: "REGULAR",
+    COMPACT: "COMPACT",
+    LARGE: "LARGE",
+    MOTORCYCLE: "MOTORCYCLE",
+    ACCESSIBLE: "ACCESSIBLE",
+    ELECTRIC: "ELECTRIC"
+} as const;
+export type SpotType = (typeof SpotType)[keyof typeof SpotType];

@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
+import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
 import { ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
 import { ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
@@ -56,12 +57,17 @@ function makeAnonymousVehicle(plate: string): Vehicle {
   });
 }
 
+let nextSessionSpotColumn = 1;
+
 function makeSpot(code: string): ParkingSpot {
   return ParkingSpot.register({
     parkingLotId: PARKING_LOT_ID,
     code: SpotCodeVO.from(code),
     floor: 1,
+    row: 1,
+    column: nextSessionSpotColumn++,
     isCovered: true,
+    spotType: SpotTypeVO.regular(),
   });
 }
 

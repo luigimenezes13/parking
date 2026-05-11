@@ -60,4 +60,27 @@ export class InMemoryParkingSessionRepository implements ParkingSessionRepositor
     }
     return mostRecent;
   }
+
+  async findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]> {
+    const result: ParkingSession[] = [];
+    for (const session of this.sessions.values()) {
+      if (session.isActive() && session.parkingLotId().equals(parkingLotId)) {
+        result.push(session);
+      }
+    }
+    result.sort((left, right) => left.entryAt().getTime() - right.entryAt().getTime());
+    return result;
+  }
+
+  async findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]> {
+    const result: ParkingSession[] = [];
+    for (const session of this.sessions.values()) {
+      const vehicle = session.vehicle();
+      if (vehicle && vehicle.id().equals(vehicleId)) {
+        result.push(session);
+      }
+    }
+    result.sort((left, right) => right.entryAt().getTime() - left.entryAt().getTime());
+    return result;
+  }
 }
