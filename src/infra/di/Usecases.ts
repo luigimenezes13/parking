@@ -10,6 +10,13 @@ import { GetParkingLotByIdUseCase } from '@app/usecases/parking-lot/get-parking-
 import { ListParkingLotsUseCase } from '@app/usecases/parking-lot/list-parking-lots-usecase.ts';
 import { UpdateParkingLotInfoUseCase } from '@app/usecases/parking-lot/update-parking-lot-info-usecase.ts';
 import { DeactivateParkingLotUseCase } from '@app/usecases/parking-lot/deactivate-parking-lot-usecase.ts';
+import { RegisterVehicleUseCase } from '@app/usecases/vehicle/register-vehicle-usecase.ts';
+import { GetVehicleByIdUseCase } from '@app/usecases/vehicle/get-vehicle-by-id-usecase.ts';
+import { ListVehiclesByDriverUseCase } from '@app/usecases/vehicle/list-vehicles-by-driver-usecase.ts';
+import { ListVehiclesByLotUseCase } from '@app/usecases/vehicle/list-vehicles-by-lot-usecase.ts';
+import { UpdateVehicleAppearanceUseCase } from '@app/usecases/vehicle/update-vehicle-appearance-usecase.ts';
+import { TransferVehicleOwnershipUseCase } from '@app/usecases/vehicle/transfer-vehicle-ownership-usecase.ts';
+import { DeactivateVehicleUseCase } from '@app/usecases/vehicle/deactivate-vehicle-usecase.ts';
 
 export function configureUseCases(container: Container): void {
   // Driver
@@ -31,4 +38,22 @@ export function configureUseCases(container: Container): void {
     .bind<DeactivateParkingLotUseCase>(DeactivateParkingLotUseCase)
     .toSelf()
     .inTransientScope();
+
+  // Vehicle
+  container.bind<RegisterVehicleUseCase>(RegisterVehicleUseCase).toSelf().inTransientScope();
+  container.bind<GetVehicleByIdUseCase>(GetVehicleByIdUseCase).toSelf().inTransientScope();
+  container
+    .bind<ListVehiclesByDriverUseCase>(ListVehiclesByDriverUseCase)
+    .toSelf()
+    .inTransientScope();
+  container.bind<ListVehiclesByLotUseCase>(ListVehiclesByLotUseCase).toSelf().inTransientScope();
+  container
+    .bind<UpdateVehicleAppearanceUseCase>(UpdateVehicleAppearanceUseCase)
+    .toSelf()
+    .inTransientScope();
+  container
+    .bind<TransferVehicleOwnershipUseCase>(TransferVehicleOwnershipUseCase)
+    .toSelf()
+    .inTransientScope();
+  container.bind<DeactivateVehicleUseCase>(DeactivateVehicleUseCase).toSelf().inTransientScope();
 }

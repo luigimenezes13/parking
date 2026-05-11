@@ -24,19 +24,12 @@ export class KyselyVehicleRepository implements VehicleRepository {
 
   async save(vehicle: Vehicle): Promise<void> {
     const row = this.mapper.toInsert(vehicle);
+    const update = this.mapper.toUpdate(vehicle);
 
     await this.database
       .insertInto('vehicles')
       .values(row)
-      .onConflict((conflict) =>
-        conflict.column('id').doUpdateSet({
-          driver_id: row.driver_id,
-          brand: row.brand,
-          model: row.model,
-          color: row.color,
-          updated_at: row.updated_at,
-        }),
-      )
+      .onConflict((conflict) => conflict.column('id').doUpdateSet(update))
       .execute();
   }
 
@@ -65,6 +58,31 @@ export class KyselyVehicleRepository implements VehicleRepository {
       .selectFrom('vehicles')
       .selectAll()
       .where('driver_id', '=', driverId.value())
+      .where('deactivated_at', 'is', null)
+      .orderBy('created_at', 'asc')
+      .execute();
+
+    return rows.map((row) => this.mapper.toDomain(row));
+  }
+
+  async findByParkingLotId(parkingLotId: UniqueIdentifier): Promise<Vehicle[]> {
+    const rows = await this.database
+      .selectFrom('vehicles')
+      .selectAll()
+      .where('parking_lot_id', '=', parkingLotId.value())
+      .where('deactivated_at', 'is', null)
+      .orderBy('created_at', 'asc')
+      .execute();
+
+    return rows.map((row) => this.mapper.toDomain(row));
+  }
+
+  async findAll(): Promise<Vehicle[]> {
+    const rows = await this.database
+      .selectFrom('vehicles')
+      .selectAll()
+      .where('deactivated_at', 'is', null)
+      .orderBy('created_at', 'asc')
       .execute();
 
     return rows.map((row) => this.mapper.toDomain(row));
