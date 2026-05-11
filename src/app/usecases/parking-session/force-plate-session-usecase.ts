@@ -2,6 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
+import { ForcePlateSessionRequest } from '@app/dto/inputs/parking-session/force-plate-session-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
@@ -11,13 +12,8 @@ import { type VehicleRepository } from '@domain/parking/repositories/vehicle-rep
 import { type DomainEventPublisher } from '@domain/shared/events/domain-event-publisher.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
 
-export interface ForcePlateSessionInput {
-  sessionId: string;
-  plate: string;
-}
-
 @injectable()
-export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionInput, ParkingSession> {
+export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionRequest, ParkingSession> {
   private readonly sessions: ParkingSessionRepository;
   private readonly vehicles: VehicleRepository;
   private readonly publisher: DomainEventPublisher;
@@ -32,14 +28,16 @@ export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionInput,
     this.publisher = publisher;
   }
 
-  async execute(input: ForcePlateSessionInput): Promise<ParkingSession> {
-    const session = await this.sessions.findById(UniqueIdentifier.fromExisting(input.sessionId));
+  async execute(input: ForcePlateSessionRequest): Promise<ParkingSession> {
+    const { sessionId, plate } = input.props;
+
+    const session = await this.sessions.findById(UniqueIdentifier.fromExisting(sessionId));
 
     if (!session) {
-      throw new ParkingSessionNotFoundError(input.sessionId);
+      throw new ParkingSessionNotFoundError(sessionId);
     }
 
-    const licensePlate = LicensePlateVO.from(input.plate);
+    const licensePlate = LicensePlateVO.from(plate);
     const vehicle = await this.resolveOrCreateVehicle(licensePlate, session.parkingLotId());
     await this.vehicles.save(vehicle);
 

@@ -2,6 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
+import { RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
@@ -12,24 +13,14 @@ import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-err
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 import { DuplicateVehicleLicensePlateError } from '@app/exceptions/vehicle/duplicate-vehicle-license-plate-error.ts';
 
-export interface RegisterVehicleInput {
-  driverId?: string | null;
-  parkingLotId: string;
-  licensePlate: string;
-  brand?: string | null;
-  model?: string | null;
-  color?: string | null;
-}
-
 export interface RegisterVehicleOutput {
   vehicleId: string;
 }
 
 @injectable()
-export class RegisterVehicleUseCase implements UseCase<
-  RegisterVehicleInput,
-  RegisterVehicleOutput
-> {
+export class RegisterVehicleUseCase
+  implements UseCase<RegisterVehicleRequest, RegisterVehicleOutput>
+{
   private readonly vehicles: VehicleRepository;
   private readonly drivers: DriverRepository;
   private readonly parkingLots: ParkingLotRepository;
@@ -44,24 +35,31 @@ export class RegisterVehicleUseCase implements UseCase<
     this.parkingLots = parkingLots;
   }
 
-  async execute(input: RegisterVehicleInput): Promise<RegisterVehicleOutput> {
-    const parkingLot = await this.parkingLots.findById(
-      UniqueIdentifier.fromExisting(input.parkingLotId),
-    );
+  async execute(input: RegisterVehicleRequest): Promise<RegisterVehicleOutput> {
+    const {
+      driverId: driverIdInput,
+      parkingLotId,
+      licensePlate: plateInput,
+      brand,
+      model,
+      color,
+    } = input.props;
+
+    const parkingLot = await this.parkingLots.findById(UniqueIdentifier.fromExisting(parkingLotId));
     if (!parkingLot || parkingLot.isDeactivated()) {
-      throw new ParkingLotNotFoundError(input.parkingLotId);
+      throw new ParkingLotNotFoundError(parkingLotId);
     }
 
     let driverId: UniqueIdentifier | null = null;
-    if (input.driverId) {
-      const driver = await this.drivers.findById(UniqueIdentifier.fromExisting(input.driverId));
+    if (driverIdInput) {
+      const driver = await this.drivers.findById(UniqueIdentifier.fromExisting(driverIdInput));
       if (!driver || driver.isDeactivated()) {
-        throw new DriverNotFoundError(input.driverId);
+        throw new DriverNotFoundError(driverIdInput);
       }
       driverId = driver.id();
     }
 
-    const licensePlate = LicensePlateVO.from(input.licensePlate);
+    const licensePlate = LicensePlateVO.from(plateInput);
     const existing = await this.vehicles.findByLicensePlate(licensePlate);
     if (existing) {
       throw new DuplicateVehicleLicensePlateError(licensePlate.value());
@@ -71,9 +69,9 @@ export class RegisterVehicleUseCase implements UseCase<
       driverId,
       parkingLotId: parkingLot.id(),
       licensePlate,
-      brand: input.brand ?? null,
-      model: input.model ?? null,
-      color: input.color ?? null,
+      brand: brand ?? null,
+      model: model ?? null,
+      color: color ?? null,
     });
 
     await this.vehicles.save(vehicle);
