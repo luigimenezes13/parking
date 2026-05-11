@@ -22,6 +22,11 @@ import { GetParkingSpotByIdUseCase } from '@app/usecases/parking-spot/get-parkin
 import { ListParkingSpotsByLotUseCase } from '@app/usecases/parking-spot/list-parking-spots-by-lot-usecase.ts';
 import { UpdateParkingSpotMetadataUseCase } from '@app/usecases/parking-spot/update-parking-spot-metadata-usecase.ts';
 import { DeactivateParkingSpotUseCase } from '@app/usecases/parking-spot/deactivate-parking-spot-usecase.ts';
+import { GetParkingSessionByIdUseCase } from '@app/usecases/parking-session/get-parking-session-by-id-usecase.ts';
+import { ListActiveSessionsByLotUseCase } from '@app/usecases/parking-session/list-active-sessions-by-lot-usecase.ts';
+import { ListSessionsByVehicleUseCase } from '@app/usecases/parking-session/list-sessions-by-vehicle-usecase.ts';
+import { ForceFinishSessionUseCase } from '@app/usecases/parking-session/force-finish-session-usecase.ts';
+import { ForcePlateSessionUseCase } from '@app/usecases/parking-session/force-plate-session-usecase.ts';
 
 export function configureUseCases(container: Container): void {
   // Driver
@@ -77,4 +82,20 @@ export function configureUseCases(container: Container): void {
     .bind<DeactivateParkingSpotUseCase>(DeactivateParkingSpotUseCase)
     .toSelf()
     .inTransientScope();
+
+  // ParkingSession
+  container
+    .bind<GetParkingSessionByIdUseCase>(GetParkingSessionByIdUseCase)
+    .toSelf()
+    .inTransientScope();
+  container
+    .bind<ListActiveSessionsByLotUseCase>(ListActiveSessionsByLotUseCase)
+    .toSelf()
+    .inTransientScope();
+  container
+    .bind<ListSessionsByVehicleUseCase>(ListSessionsByVehicleUseCase)
+    .toSelf()
+    .inTransientScope();
+  container.bind<ForceFinishSessionUseCase>(ForceFinishSessionUseCase).toSelf().inTransientScope();
+  container.bind<ForcePlateSessionUseCase>(ForcePlateSessionUseCase).toSelf().inTransientScope();
 }
