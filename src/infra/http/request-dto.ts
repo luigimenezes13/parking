@@ -5,12 +5,12 @@ import { BadRequestException, HttpException } from './http-exception.ts';
 export abstract class RequestDto<T> {
   private readonly _props: T;
 
-  constructor(props: T, schema: z.ZodType<T>) {
+  constructor(props: T, schema: z.ZodType) {
     const result = schema.safeParse(props);
     if (!result.success) {
       throw new BadRequestException(HttpException.fromZod(result.error));
     }
-    this._props = result.data;
+    this._props = { ...props, ...(result.data as Partial<T>) };
   }
 
   get props(): T {
