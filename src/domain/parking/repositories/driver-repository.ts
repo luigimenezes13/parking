@@ -6,4 +6,5 @@ export interface DriverRepository {
   findById(identifier: UniqueIdentifier): Promise<Driver | null>;
   findByCnh(cnh: string): Promise<Driver | null>;
   findByEmail(email: string): Promise<Driver | null>;
+  findAll(): Promise<Driver[]>;
 }

@@ -134,12 +134,14 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
         'v.brand as vehicle_brand',
         'v.model as vehicle_model',
         'v.color as vehicle_color',
+        'v.deactivated_at as vehicle_deactivated_at',
         'p.id as spot_id',
         'p.parking_lot_id as spot_parking_lot_id',
         'p.code as spot_code',
         'p.floor as spot_floor',
         'p.is_covered as spot_is_covered',
         'p.status as spot_status',
+        'p.deactivated_at as spot_deactivated_at',
       ]);
   }
 
@@ -154,6 +156,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
             brand: row.vehicle_brand,
             model: row.vehicle_model,
             color: row.vehicle_color,
+            deactivated_at: row.vehicle_deactivated_at,
           }
         : null;
 
@@ -178,6 +181,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
               floor: row.spot_floor as number,
               is_covered: row.spot_is_covered as boolean,
               status: row.spot_status as 'FREE' | 'OCCUPIED' | 'RESERVED',
+              deactivated_at: row.spot_deactivated_at,
             }
           : null,
     };
@@ -200,10 +204,12 @@ interface HydratedRow {
   vehicle_brand: string | null;
   vehicle_model: string | null;
   vehicle_color: string | null;
+  vehicle_deactivated_at: Date | null;
   spot_id: string | null;
   spot_parking_lot_id: string | null;
   spot_code: string | null;
   spot_floor: number | null;
   spot_is_covered: boolean | null;
   spot_status: 'FREE' | 'OCCUPIED' | 'RESERVED' | null;
+  spot_deactivated_at: Date | null;
 }
