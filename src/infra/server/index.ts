@@ -10,6 +10,7 @@ import { container } from '@infra/di/Container.ts';
 import { TYPES } from '@app/dto/types.ts';
 import { HealthController } from '@infra/controllers/HealthController.ts';
 import { RecognitionEventsController } from '@infra/controllers/RecognitionEventsController.ts';
+import { DriverController } from '@infra/controllers/driver-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -91,6 +92,9 @@ healthController.register(server);
 
 const recognitionEventsController = container.get(RecognitionEventsController);
 recognitionEventsController.register(server);
+
+const driverController = container.get(DriverController);
+driverController.register(server);
 
 registerErrorHandler(server);
 
