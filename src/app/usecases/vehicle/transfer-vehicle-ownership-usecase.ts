@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { TransferVehicleOwnershipRequest } from '@app/dto/inputs/vehicle/transfer-vehicle-ownership-input.ts';
+import { type TransferVehicleOwnershipRequest } from '@app/dto/inputs/vehicle/transfer-vehicle-ownership-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { type Vehicle } from '@domain/parking/entities/vehicle.ts';
 import { type DriverRepository } from '@domain/parking/repositories/driver-repository.ts';
@@ -11,9 +11,10 @@ import { VehicleNotFoundError } from '@app/exceptions/vehicle/vehicle-not-found-
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
 
 @injectable()
-export class TransferVehicleOwnershipUseCase
-  implements UseCase<TransferVehicleOwnershipRequest, Vehicle>
-{
+export class TransferVehicleOwnershipUseCase implements UseCase<
+  TransferVehicleOwnershipRequest,
+  Vehicle
+> {
   private readonly vehicles: VehicleRepository;
   private readonly drivers: DriverRepository;
 

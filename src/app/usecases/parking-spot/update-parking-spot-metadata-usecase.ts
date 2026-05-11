@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { UpdateParkingSpotMetadataRequest } from '@app/dto/inputs/parking-spot/update-parking-spot-metadata-input.ts';
+import { type UpdateParkingSpotMetadataRequest } from '@app/dto/inputs/parking-spot/update-parking-spot-metadata-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
 import { type ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
@@ -11,9 +11,10 @@ import { ParkingSpotNotFoundError } from '@app/exceptions/parking-spot/parking-s
 import { DuplicateSpotPositionError } from '@app/exceptions/parking-spot/duplicate-spot-position-error.ts';
 
 @injectable()
-export class UpdateParkingSpotMetadataUseCase
-  implements UseCase<UpdateParkingSpotMetadataRequest, ParkingSpot>
-{
+export class UpdateParkingSpotMetadataUseCase implements UseCase<
+  UpdateParkingSpotMetadataRequest,
+  ParkingSpot
+> {
   private readonly parkingSpots: ParkingSpotRepository;
 
   constructor(@inject(TYPES.ParkingSpotRepository) parkingSpots: ParkingSpotRepository) {
@@ -21,8 +22,14 @@ export class UpdateParkingSpotMetadataUseCase
   }
 
   async execute(input: UpdateParkingSpotMetadataRequest): Promise<ParkingSpot> {
-    const { parkingSpotId: parkingSpotIdInput, floor, row, column, isCovered, spotType } =
-      input.props;
+    const {
+      parkingSpotId: parkingSpotIdInput,
+      floor,
+      row,
+      column,
+      isCovered,
+      spotType,
+    } = input.props;
 
     const spotId = UniqueIdentifier.fromExisting(parkingSpotIdInput);
     const spot = await this.parkingSpots.findById(spotId);

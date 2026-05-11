@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle-input.ts';
+import { type RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
@@ -18,9 +18,10 @@ export interface RegisterVehicleOutput {
 }
 
 @injectable()
-export class RegisterVehicleUseCase
-  implements UseCase<RegisterVehicleRequest, RegisterVehicleOutput>
-{
+export class RegisterVehicleUseCase implements UseCase<
+  RegisterVehicleRequest,
+  RegisterVehicleOutput
+> {
   private readonly vehicles: VehicleRepository;
   private readonly drivers: DriverRepository;
   private readonly parkingLots: ParkingLotRepository;
