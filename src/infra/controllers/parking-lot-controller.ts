@@ -7,7 +7,9 @@ import { GetParkingLotByIdUseCase } from '@app/usecases/parking-lot/get-parking-
 import { ListParkingLotsUseCase } from '@app/usecases/parking-lot/list-parking-lots-usecase.ts';
 import { UpdateParkingLotInfoUseCase } from '@app/usecases/parking-lot/update-parking-lot-info-usecase.ts';
 import { DeactivateParkingLotUseCase } from '@app/usecases/parking-lot/deactivate-parking-lot-usecase.ts';
+import { GetParkingLotMapUseCase } from '@app/usecases/parking-lot/get-parking-lot-map-usecase.ts';
 import { parkingLotPresenter } from '@infra/controllers/parking-lot-presenter.ts';
+import { parkingLotMapPresenter } from '@infra/controllers/parking-lot-map-presenter.ts';
 
 const createBodySchema = z.object({
   name: z.string().min(1),
@@ -32,6 +34,7 @@ export class ParkingLotController {
   private readonly listParkingLots: ListParkingLotsUseCase;
   private readonly updateParkingLotInfo: UpdateParkingLotInfoUseCase;
   private readonly deactivateParkingLot: DeactivateParkingLotUseCase;
+  private readonly getParkingLotMap: GetParkingLotMapUseCase;
 
   constructor(
     @inject(CreateParkingLotUseCase) createParkingLot: CreateParkingLotUseCase,
@@ -39,20 +42,33 @@ export class ParkingLotController {
     @inject(ListParkingLotsUseCase) listParkingLots: ListParkingLotsUseCase,
     @inject(UpdateParkingLotInfoUseCase) updateParkingLotInfo: UpdateParkingLotInfoUseCase,
     @inject(DeactivateParkingLotUseCase) deactivateParkingLot: DeactivateParkingLotUseCase,
+    @inject(GetParkingLotMapUseCase) getParkingLotMap: GetParkingLotMapUseCase,
   ) {
     this.createParkingLot = createParkingLot;
     this.getParkingLotById = getParkingLotById;
     this.listParkingLots = listParkingLots;
     this.updateParkingLotInfo = updateParkingLotInfo;
     this.deactivateParkingLot = deactivateParkingLot;
+    this.getParkingLotMap = getParkingLotMap;
   }
 
   register(server: FastifyInstance): void {
     server.post('/parking-lots', this.handleCreate.bind(this));
     server.get('/parking-lots', this.handleList.bind(this));
     server.get('/parking-lots/:id', this.handleGetById.bind(this));
+    server.get('/parking-lots/:id/map', this.handleGetMap.bind(this));
     server.patch('/parking-lots/:id', this.handleUpdate.bind(this));
     server.delete('/parking-lots/:id', this.handleDeactivate.bind(this));
+  }
+
+  private async handleGetMap(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const parsed = parkingLotIdParamSchema.safeParse(request.params);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
+    }
+
+    const view = await this.getParkingLotMap.execute({ parkingLotId: parsed.data.id });
+    return reply.status(200).send(parkingLotMapPresenter.toResponse(view));
   }
 
   private async handleCreate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
