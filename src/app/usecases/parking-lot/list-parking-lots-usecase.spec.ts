@@ -1,39 +1,48 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { ParkingLot } from '@domain/parking/entities/parking-lot.ts';
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { ListParkingLotsUseCase } from '@app/usecases/parking-lot/list-parking-lots-usecase.ts';
+import { makeParkingLot } from '@domain/parking/__tests__/factories/parking-lot.factory.ts';
+
+interface Setup {
+  parkingLots: InMemoryParkingLotRepository;
+  usecase: ListParkingLotsUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const parkingLots = new InMemoryParkingLotRepository();
+  const usecase = new ListParkingLotsUseCase(parkingLots);
+  return { parkingLots, usecase };
+}
 
 describe('ListParkingLotsUseCase', () => {
-  let parkingLots: InMemoryParkingLotRepository;
-  let usecase: ListParkingLotsUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    parkingLots = new InMemoryParkingLotRepository();
-    usecase = new ListParkingLotsUseCase(parkingLots);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('returns all active parking lots', async () => {
-    await parkingLots.save(
-      ParkingLot.register({ name: 'A', address: 'addr-a', totalCapacity: 10 }),
+    await setup.parkingLots.save(
+      makeParkingLot({ name: 'A', address: 'addr-a', totalCapacity: 10 }),
     );
-    await parkingLots.save(
-      ParkingLot.register({ name: 'B', address: 'addr-b', totalCapacity: 20 }),
+    await setup.parkingLots.save(
+      makeParkingLot({ name: 'B', address: 'addr-b', totalCapacity: 20 }),
     );
 
-    const found = await usecase.execute({});
+    const found = await setup.usecase.execute({});
 
     expect(found).toHaveLength(2);
   });
 
   it('excludes deactivated lots from the list', async () => {
-    const active = ParkingLot.register({ name: 'Active', address: 'a', totalCapacity: 10 });
-    const archived = ParkingLot.register({ name: 'Archived', address: 'a', totalCapacity: 10 });
+    const active = makeParkingLot({ name: 'Active', address: 'a', totalCapacity: 10 });
+    const archived = makeParkingLot({ name: 'Archived', address: 'a', totalCapacity: 10 });
     archived.deactivate(new Date());
-    await parkingLots.save(active);
-    await parkingLots.save(archived);
+    await setup.parkingLots.save(active);
+    await setup.parkingLots.save(archived);
 
-    const found = await usecase.execute({});
+    const found = await setup.usecase.execute({});
 
     expect(found).toHaveLength(1);
     expect(found[0]?.name()).toBe('Active');

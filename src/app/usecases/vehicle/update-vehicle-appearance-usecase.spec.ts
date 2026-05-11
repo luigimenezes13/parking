@@ -1,33 +1,34 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
-import { Vehicle } from '@domain/parking/entities/vehicle.ts';
-import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
 import { UpdateVehicleAppearanceUseCase } from '@app/usecases/vehicle/update-vehicle-appearance-usecase.ts';
 import { UpdateVehicleAppearanceRequest } from '@app/dto/inputs/vehicle/update-vehicle-appearance-input.ts';
 import { VehicleNotFoundError } from '@app/exceptions/vehicle/vehicle-not-found-error.ts';
+import { makeVehicle } from '@domain/parking/__tests__/factories/vehicle.factory.ts';
+
+interface Setup {
+  vehicles: InMemoryVehicleRepository;
+  usecase: UpdateVehicleAppearanceUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const vehicles = new InMemoryVehicleRepository();
+  const usecase = new UpdateVehicleAppearanceUseCase(vehicles);
+  return { vehicles, usecase };
+}
 
 describe('UpdateVehicleAppearanceUseCase', () => {
-  let vehicles: InMemoryVehicleRepository;
-  let usecase: UpdateVehicleAppearanceUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    vehicles = new InMemoryVehicleRepository();
-    usecase = new UpdateVehicleAppearanceUseCase(vehicles);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('updates brand, model and color', async () => {
-    const vehicle = Vehicle.registerAnonymous({
-      parkingLotId: UniqueIdentifier.create(),
-      licensePlate: LicensePlateVO.from('ABC1D23'),
-      brand: 'Old',
-      model: 'OldModel',
-      color: 'OldColor',
-    });
-    await vehicles.save(vehicle);
+    const vehicle = makeVehicle({ brand: 'Old', model: 'OldModel', color: 'OldColor' });
+    await setup.vehicles.save(vehicle);
 
-    const updated = await usecase.execute(
+    const updated = await setup.usecase.execute(
       new UpdateVehicleAppearanceRequest({
         vehicleId: vehicle.id().value(),
         brand: 'Toyota',
@@ -43,7 +44,7 @@ describe('UpdateVehicleAppearanceUseCase', () => {
 
   it('throws VehicleNotFoundError when missing', async () => {
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new UpdateVehicleAppearanceRequest({
           vehicleId: '00000000-0000-4000-8000-000000000000',
           brand: 'X',
