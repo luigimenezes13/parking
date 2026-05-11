@@ -11,6 +11,7 @@ import { TYPES } from '@app/dto/types.ts';
 import { HealthController } from '@infra/controllers/HealthController.ts';
 import { RecognitionEventsController } from '@infra/controllers/RecognitionEventsController.ts';
 import { DriverController } from '@infra/controllers/driver-controller.ts';
+import { ParkingLotController } from '@infra/controllers/parking-lot-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -95,6 +96,9 @@ recognitionEventsController.register(server);
 
 const driverController = container.get(DriverController);
 driverController.register(server);
+
+const parkingLotController = container.get(ParkingLotController);
+parkingLotController.register(server);
 
 registerErrorHandler(server);
 
