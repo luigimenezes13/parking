@@ -1,6 +1,7 @@
 import { Entity } from '@domain/shared/entity.ts';
 import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
+import { EntityAlreadyDeactivatedError } from '@domain/parking/errors/entity-already-deactivated.ts';
 
 export interface VehicleProperties {
   driverId: UniqueIdentifier | null;
@@ -9,6 +10,7 @@ export interface VehicleProperties {
   brand: string | null;
   model: string | null;
   color: string | null;
+  deactivatedAt?: Date | null;
 }
 
 export interface VehicleAppearance {
@@ -19,11 +21,11 @@ export interface VehicleAppearance {
 
 export class Vehicle extends Entity<VehicleProperties> {
   constructor(properties: VehicleProperties, identifier?: UniqueIdentifier) {
-    super(properties, identifier);
+    super({ ...properties, deactivatedAt: properties.deactivatedAt ?? null }, identifier);
   }
 
-  static register(properties: VehicleProperties): Vehicle {
-    return new Vehicle(properties);
+  static register(properties: Omit<VehicleProperties, 'deactivatedAt'>): Vehicle {
+    return new Vehicle({ ...properties, deactivatedAt: null });
   }
 
   static registerAnonymous(properties: {
@@ -40,6 +42,7 @@ export class Vehicle extends Entity<VehicleProperties> {
       brand: properties.brand ?? null,
       model: properties.model ?? null,
       color: properties.color ?? null,
+      deactivatedAt: null,
     });
   }
 
@@ -51,6 +54,22 @@ export class Vehicle extends Entity<VehicleProperties> {
     this.properties.brand = appearance.brand;
     this.properties.model = appearance.model;
     this.properties.color = appearance.color;
+  }
+
+  deactivate(now: Date): void {
+    if (this.isDeactivated()) {
+      throw new EntityAlreadyDeactivatedError('Vehicle', this.identifier.value());
+    }
+
+    this.properties.deactivatedAt = new Date(now.getTime());
+  }
+
+  isDeactivated(): boolean {
+    return this.properties.deactivatedAt != null;
+  }
+
+  isActive(): boolean {
+    return !this.isDeactivated();
   }
 
   belongsTo(driverId: UniqueIdentifier): boolean {
@@ -91,5 +110,9 @@ export class Vehicle extends Entity<VehicleProperties> {
 
   color(): string | null {
     return this.properties.color;
+  }
+
+  deactivatedAt(): Date | null {
+    return this.properties.deactivatedAt ? new Date(this.properties.deactivatedAt.getTime()) : null;
   }
 }

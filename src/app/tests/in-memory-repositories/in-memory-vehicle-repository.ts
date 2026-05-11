@@ -26,10 +26,30 @@ export class InMemoryVehicleRepository implements VehicleRepository {
   async findByDriverId(driverId: UniqueIdentifier): Promise<Vehicle[]> {
     const matches: Vehicle[] = [];
     for (const vehicle of this.vehicles.values()) {
-      if (vehicle.belongsTo(driverId)) {
+      if (vehicle.isActive() && vehicle.belongsTo(driverId)) {
         matches.push(vehicle);
       }
     }
     return matches;
+  }
+
+  async findByParkingLotId(parkingLotId: UniqueIdentifier): Promise<Vehicle[]> {
+    const matches: Vehicle[] = [];
+    for (const vehicle of this.vehicles.values()) {
+      if (vehicle.isActive() && vehicle.parkingLotId().equals(parkingLotId)) {
+        matches.push(vehicle);
+      }
+    }
+    return matches;
+  }
+
+  async findAll(): Promise<Vehicle[]> {
+    const active: Vehicle[] = [];
+    for (const vehicle of this.vehicles.values()) {
+      if (vehicle.isActive()) {
+        active.push(vehicle);
+      }
+    }
+    return active;
   }
 }

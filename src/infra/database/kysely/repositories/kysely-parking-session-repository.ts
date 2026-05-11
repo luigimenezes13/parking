@@ -101,6 +101,23 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     );
   }
 
+  async findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]> {
+    return this.queryHydratedSessions((trx) =>
+      this.baseSelect(trx)
+        .where('s.status', '=', 'ACTIVE')
+        .where('s.parking_lot_id', '=', parkingLotId.value())
+        .orderBy('s.entry_at', 'asc'),
+    );
+  }
+
+  async findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]> {
+    return this.queryHydratedSessions((trx) =>
+      this.baseSelect(trx)
+        .where('s.vehicle_id', '=', vehicleId.value())
+        .orderBy('s.entry_at', 'desc'),
+    );
+  }
+
   private async queryHydratedSession(
     builder: (database: Kysely<Database>) => ReturnType<typeof this.baseSelect>,
   ): Promise<ParkingSession | null> {
@@ -111,6 +128,13 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     }
 
     return this.sessionMapper.toDomain(this.toHydrationRow(row));
+  }
+
+  private async queryHydratedSessions(
+    builder: (database: Kysely<Database>) => ReturnType<typeof this.baseSelect>,
+  ): Promise<ParkingSession[]> {
+    const rows = await builder(this.database).execute();
+    return rows.map((row) => this.sessionMapper.toDomain(this.toHydrationRow(row)));
   }
 
   private baseSelect(trx: Kysely<Database> | Transaction<Database>) {
@@ -134,12 +158,17 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
         'v.brand as vehicle_brand',
         'v.model as vehicle_model',
         'v.color as vehicle_color',
+        'v.deactivated_at as vehicle_deactivated_at',
         'p.id as spot_id',
         'p.parking_lot_id as spot_parking_lot_id',
         'p.code as spot_code',
         'p.floor as spot_floor',
+        'p.row as spot_row',
+        'p.column as spot_column',
         'p.is_covered as spot_is_covered',
+        'p.spot_type as spot_spot_type',
         'p.status as spot_status',
+        'p.deactivated_at as spot_deactivated_at',
       ]);
   }
 
@@ -154,6 +183,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
             brand: row.vehicle_brand,
             model: row.vehicle_model,
             color: row.vehicle_color,
+            deactivated_at: row.vehicle_deactivated_at,
           }
         : null;
 
@@ -176,8 +206,18 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
               parking_lot_id: row.spot_parking_lot_id,
               code: row.spot_code,
               floor: row.spot_floor as number,
+              row: row.spot_row as number,
+              column: row.spot_column as number,
               is_covered: row.spot_is_covered as boolean,
+              spot_type: row.spot_spot_type as
+                | 'REGULAR'
+                | 'COMPACT'
+                | 'LARGE'
+                | 'MOTORCYCLE'
+                | 'ACCESSIBLE'
+                | 'ELECTRIC',
               status: row.spot_status as 'FREE' | 'OCCUPIED' | 'RESERVED',
+              deactivated_at: row.spot_deactivated_at,
             }
           : null,
     };
@@ -200,10 +240,15 @@ interface HydratedRow {
   vehicle_brand: string | null;
   vehicle_model: string | null;
   vehicle_color: string | null;
+  vehicle_deactivated_at: Date | null;
   spot_id: string | null;
   spot_parking_lot_id: string | null;
   spot_code: string | null;
   spot_floor: number | null;
+  spot_row: number | null;
+  spot_column: number | null;
   spot_is_covered: boolean | null;
+  spot_spot_type: 'REGULAR' | 'COMPACT' | 'LARGE' | 'MOTORCYCLE' | 'ACCESSIBLE' | 'ELECTRIC' | null;
   spot_status: 'FREE' | 'OCCUPIED' | 'RESERVED' | null;
+  spot_deactivated_at: Date | null;
 }

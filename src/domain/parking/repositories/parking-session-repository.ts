@@ -9,4 +9,6 @@ export interface ParkingSessionRepository {
   findActiveBySpot(spotId: UniqueIdentifier): Promise<ParkingSession | null>;
   findOldestPendingVehicle(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null>;
   findMostRecentActive(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null>;
+  findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]>;
+  findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]>;
 }

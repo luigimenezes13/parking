@@ -10,6 +10,11 @@ import { container } from '@infra/di/Container.ts';
 import { TYPES } from '@app/dto/types.ts';
 import { HealthController } from '@infra/controllers/HealthController.ts';
 import { RecognitionEventsController } from '@infra/controllers/RecognitionEventsController.ts';
+import { DriverController } from '@infra/controllers/driver-controller.ts';
+import { ParkingLotController } from '@infra/controllers/parking-lot-controller.ts';
+import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
+import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
+import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -91,6 +96,21 @@ healthController.register(server);
 
 const recognitionEventsController = container.get(RecognitionEventsController);
 recognitionEventsController.register(server);
+
+const driverController = container.get(DriverController);
+driverController.register(server);
+
+const parkingLotController = container.get(ParkingLotController);
+parkingLotController.register(server);
+
+const vehicleController = container.get(VehicleController);
+vehicleController.register(server);
+
+const parkingSpotController = container.get(ParkingSpotController);
+parkingSpotController.register(server);
+
+const parkingSessionController = container.get(ParkingSessionController);
+parkingSessionController.register(server);
 
 registerErrorHandler(server);
 

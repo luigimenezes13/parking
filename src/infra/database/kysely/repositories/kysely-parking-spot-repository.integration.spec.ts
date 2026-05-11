@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
+import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
 import { ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { database } from '@infra/database/Connection.ts';
 import { disconnectDatabase, truncateAllTables } from '@infra/database/__tests__/test-database.ts';
@@ -28,12 +29,17 @@ function makeRepository(): KyselyParkingSpotRepository {
   return new KyselyParkingSpotRepository(database, new ParkingSpotMapper());
 }
 
+let nextColumn = 1;
+
 function makeSpot(code = 'A'): ParkingSpot {
   return ParkingSpot.register({
     parkingLotId: PARKING_LOT_ID,
     code: SpotCodeVO.from(code),
     floor: 1,
+    row: 1,
+    column: nextColumn++,
     isCovered: true,
+    spotType: SpotTypeVO.regular(),
   });
 }
 
