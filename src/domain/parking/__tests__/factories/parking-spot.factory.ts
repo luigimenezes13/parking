@@ -1,12 +1,16 @@
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
+import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
 
 export interface MakeParkingSpotOverrides {
   parkingLotId?: UniqueIdentifier;
   code?: SpotCodeVO | string;
   floor?: number;
+  row?: number;
+  column?: number;
   isCovered?: boolean;
+  spotType?: SpotTypeVO;
 }
 
 export function makeParkingSpot(overrides: MakeParkingSpotOverrides = {}): ParkingSpot {
@@ -17,6 +21,9 @@ export function makeParkingSpot(overrides: MakeParkingSpotOverrides = {}): Parki
     parkingLotId: overrides.parkingLotId ?? UniqueIdentifier.create(),
     code,
     floor: overrides.floor ?? 1,
+    row: overrides.row ?? 1,
+    column: overrides.column ?? 1,
     isCovered: overrides.isCovered ?? true,
+    spotType: overrides.spotType ?? SpotTypeVO.regular(),
   });
 }

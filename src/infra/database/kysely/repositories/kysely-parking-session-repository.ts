@@ -139,7 +139,10 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
         'p.parking_lot_id as spot_parking_lot_id',
         'p.code as spot_code',
         'p.floor as spot_floor',
+        'p.row as spot_row',
+        'p.column as spot_column',
         'p.is_covered as spot_is_covered',
+        'p.spot_type as spot_spot_type',
         'p.status as spot_status',
         'p.deactivated_at as spot_deactivated_at',
       ]);
@@ -179,7 +182,16 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
               parking_lot_id: row.spot_parking_lot_id,
               code: row.spot_code,
               floor: row.spot_floor as number,
+              row: row.spot_row as number,
+              column: row.spot_column as number,
               is_covered: row.spot_is_covered as boolean,
+              spot_type: row.spot_spot_type as
+                | 'REGULAR'
+                | 'COMPACT'
+                | 'LARGE'
+                | 'MOTORCYCLE'
+                | 'ACCESSIBLE'
+                | 'ELECTRIC',
               status: row.spot_status as 'FREE' | 'OCCUPIED' | 'RESERVED',
               deactivated_at: row.spot_deactivated_at,
             }
@@ -209,7 +221,10 @@ interface HydratedRow {
   spot_parking_lot_id: string | null;
   spot_code: string | null;
   spot_floor: number | null;
+  spot_row: number | null;
+  spot_column: number | null;
   spot_is_covered: boolean | null;
+  spot_spot_type: 'REGULAR' | 'COMPACT' | 'LARGE' | 'MOTORCYCLE' | 'ACCESSIBLE' | 'ELECTRIC' | null;
   spot_status: 'FREE' | 'OCCUPIED' | 'RESERVED' | null;
   spot_deactivated_at: Date | null;
 }

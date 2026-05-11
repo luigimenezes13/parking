@@ -48,6 +48,8 @@ export class DriverController {
     this.deactivateDriver = deactivateDriver;
   }
 
+  // TODO: Refactor all handlers to use inputDTOs and transform this into a middleware/decorator
+  // TODO: Use with swagger to generate the documentation
   register(server: FastifyInstance): void {
     server.post('/drivers', this.handleRegister.bind(this));
     server.get('/drivers', this.handleList.bind(this));

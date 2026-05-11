@@ -13,6 +13,7 @@ import { RecognitionEventsController } from '@infra/controllers/RecognitionEvent
 import { DriverController } from '@infra/controllers/driver-controller.ts';
 import { ParkingLotController } from '@infra/controllers/parking-lot-controller.ts';
 import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
+import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -103,6 +104,9 @@ parkingLotController.register(server);
 
 const vehicleController = container.get(VehicleController);
 vehicleController.register(server);
+
+const parkingSpotController = container.get(ParkingSpotController);
+parkingSpotController.register(server);
 
 registerErrorHandler(server);
 
