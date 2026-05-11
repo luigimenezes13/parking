@@ -15,6 +15,7 @@ import { ParkingLotController } from '@infra/controllers/parking-lot-controller.
 import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
 import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
 import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
+import { RegisterController } from '@infra/http/register-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
 import {
@@ -91,26 +92,14 @@ const consumers: RecognitionConsumerBinding[] = [
 ];
 await startRecognitionConsumers(rabbitChannel, consumers, environment.RABBITMQ_PREFETCH);
 
-const healthController = container.get(HealthController);
-healthController.register(server);
-
-const recognitionEventsController = container.get(RecognitionEventsController);
-recognitionEventsController.register(server);
-
-const driverController = container.get(DriverController);
-driverController.register(server);
-
-const parkingLotController = container.get(ParkingLotController);
-parkingLotController.register(server);
-
-const vehicleController = container.get(VehicleController);
-vehicleController.register(server);
-
-const parkingSpotController = container.get(ParkingSpotController);
-parkingSpotController.register(server);
-
-const parkingSessionController = container.get(ParkingSessionController);
-parkingSessionController.register(server);
+// TODO: add this to the DI
+RegisterController(server, container.get(HealthController));
+RegisterController(server, container.get(RecognitionEventsController));
+RegisterController(server, container.get(DriverController));
+RegisterController(server, container.get(ParkingLotController));
+RegisterController(server, container.get(VehicleController));
+RegisterController(server, container.get(ParkingSpotController));
+RegisterController(server, container.get(ParkingSessionController));
 
 registerErrorHandler(server);
 

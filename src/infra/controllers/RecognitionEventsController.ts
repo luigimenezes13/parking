@@ -1,31 +1,42 @@
-import { type FastifyInstance } from 'fastify';
+import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { inject, injectable } from 'inversify';
+import { z } from 'zod/v4';
 
 import { type RecognitionEventPublisher } from '@app/messaging/recognition-event-publisher.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { recognitionEventSchema } from '@infra/controllers/recognition/event-payload.schema.ts';
+import {
+  RecognitionEventRequest,
+  RecognitionEventRequestSchema,
+  type RecognitionEventRequestDTO,
+} from '@app/dto/inputs/recognition/recognition-event-input.ts';
+import { FastifyController } from '@infra/http/fastify-controller.ts';
+import {
+  ApiBodySchema,
+  ApiOperation,
+  ApiResponseSchema,
+  ApiTag,
+  Route,
+} from '@infra/http/decorators/index.ts';
+
+const acceptedResponseSchema = z.object({ accepted: z.literal(true) });
 
 @injectable()
-export class RecognitionEventsController {
+export class RecognitionEventsController extends FastifyController {
   private readonly publisher: RecognitionEventPublisher;
 
   constructor(@inject(TYPES.RecognitionEventPublisher) publisher: RecognitionEventPublisher) {
+    super();
     this.publisher = publisher;
   }
 
-  register(server: FastifyInstance): void {
-    server.post('/events', async (request, reply) => {
-      const parsed = recognitionEventSchema.safeParse(request.body);
-
-      if (!parsed.success) {
-        return reply.status(400).send({
-          error: 'invalid_payload',
-          details: parsed.error.format(),
-        });
-      }
-
-      await this.publisher.publish(parsed.data);
-      return reply.status(202).send({ accepted: true });
-    });
+  @ApiTag('Recognition')
+  @ApiOperation('Receber evento de reconhecimento (placa, vaga, etc.)')
+  @ApiBodySchema(RecognitionEventRequestSchema)
+  @ApiResponseSchema({ 202: acceptedResponseSchema })
+  @Route('post', '/events')
+  async publishEvent(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const dto = new RecognitionEventRequest(request.body as RecognitionEventRequestDTO);
+    await this.publisher.publish(dto.props);
+    return reply.status(202).send({ accepted: true });
   }
 }

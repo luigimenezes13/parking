@@ -1,4 +1,4 @@
-import { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { inject, injectable } from 'inversify';
 import { z } from 'zod/v4';
 
@@ -7,27 +7,44 @@ import { GetDriverByIdUseCase } from '@app/usecases/driver/get-driver-by-id-usec
 import { ListDriversUseCase } from '@app/usecases/driver/list-drivers-usecase.ts';
 import { UpdateDriverInfoUseCase } from '@app/usecases/driver/update-driver-info-usecase.ts';
 import { DeactivateDriverUseCase } from '@app/usecases/driver/deactivate-driver-usecase.ts';
+import {
+  RegisterDriverRequest,
+  RegisterDriverRequestSchema,
+  type RegisterDriverRequestDTO,
+} from '@app/dto/inputs/driver/register-driver-input.ts';
+import {
+  UpdateDriverInfoRequest,
+  UpdateDriverInfoRequestSchema,
+  type UpdateDriverInfoRequestDTO,
+} from '@app/dto/inputs/driver/update-driver-info-input.ts';
 import { driverPresenter } from '@infra/controllers/driver-presenter.ts';
-
-const registerBodySchema = z.object({
-  cnh: z.string().min(1).max(11),
-  name: z.string().min(1),
-  email: z.email(),
-  phone: z.string().min(1),
-});
-
-const updateBodySchema = z.object({
-  name: z.string().min(1),
-  email: z.email(),
-  phone: z.string().min(1),
-});
+import { FastifyController } from '@infra/http/fastify-controller.ts';
+import {
+  ApiBodySchema,
+  ApiOperation,
+  ApiParamsSchema,
+  ApiResponseSchema,
+  ApiTag,
+  Route,
+} from '@infra/http/decorators/index.ts';
 
 const driverIdParamSchema = z.object({
   id: z.uuid(),
 });
 
+const driverResponseSchema = z.object({
+  id: z.uuid(),
+  cnh: z.string(),
+  name: z.string(),
+  email: z.email(),
+  phone: z.string(),
+  deactivatedAt: z.string().nullable(),
+});
+
+const createdResponseSchema = z.object({ id: z.uuid() });
+
 @injectable()
-export class DriverController {
+export class DriverController extends FastifyController {
   private readonly registerDriver: RegisterDriverUseCase;
   private readonly getDriverById: GetDriverByIdUseCase;
   private readonly listDrivers: ListDriversUseCase;
@@ -41,6 +58,7 @@ export class DriverController {
     @inject(UpdateDriverInfoUseCase) updateDriverInfo: UpdateDriverInfoUseCase,
     @inject(DeactivateDriverUseCase) deactivateDriver: DeactivateDriverUseCase,
   ) {
+    super();
     this.registerDriver = registerDriver;
     this.getDriverById = getDriverById;
     this.listDrivers = listDrivers;
@@ -48,66 +66,61 @@ export class DriverController {
     this.deactivateDriver = deactivateDriver;
   }
 
-  // TODO: Refactor all handlers to use inputDTOs and transform this into a middleware/decorator
-  // TODO: Use with swagger to generate the documentation
-  register(server: FastifyInstance): void {
-    server.post('/drivers', this.handleRegister.bind(this));
-    server.get('/drivers', this.handleList.bind(this));
-    server.get('/drivers/:id', this.handleGetById.bind(this));
-    server.patch('/drivers/:id', this.handleUpdate.bind(this));
-    server.delete('/drivers/:id', this.handleDeactivate.bind(this));
+  @ApiTag('Drivers')
+  @ApiOperation('Registrar motorista')
+  @ApiBodySchema(RegisterDriverRequestSchema)
+  @ApiResponseSchema({ 201: createdResponseSchema })
+  @Route('post', '/drivers')
+  async createDriver(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const dto = new RegisterDriverRequest(request.body as RegisterDriverRequestDTO);
+    const { driverId } = await this.registerDriver.execute(dto);
+    return reply.status(201).send({ id: driverId });
   }
 
-  private async handleRegister(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = registerBodySchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const result = await this.registerDriver.execute(parsed.data);
-    return reply.status(201).send({ id: result.driverId });
-  }
-
-  private async handleList(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  @ApiTag('Drivers')
+  @ApiOperation('Listar motoristas')
+  @ApiResponseSchema({ 200: z.array(driverResponseSchema) })
+  @Route('get', '/drivers')
+  async listDriversHandler(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const drivers = await this.listDrivers.execute({});
     return reply.status(200).send(drivers.map((driver) => driverPresenter.toResponse(driver)));
   }
 
-  private async handleGetById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = driverIdParamSchema.safeParse(request.params);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const driver = await this.getDriverById.execute({ driverId: parsed.data.id });
+  @ApiTag('Drivers')
+  @ApiOperation('Buscar motorista por id')
+  @ApiParamsSchema(driverIdParamSchema)
+  @ApiResponseSchema({ 200: driverResponseSchema })
+  @Route('get', '/drivers/:id')
+  async getDriverByIdHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const driver = await this.getDriverById.execute({ driverId: id });
     return reply.status(200).send(driverPresenter.toResponse(driver));
   }
 
-  private async handleUpdate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const params = driverIdParamSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: params.error.format() });
-    }
-
-    const body = updateBodySchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: body.error.format() });
-    }
-
-    const driver = await this.updateDriverInfo.execute({
-      driverId: params.data.id,
-      ...body.data,
+  @ApiTag('Drivers')
+  @ApiOperation('Atualizar dados do motorista')
+  @ApiParamsSchema(driverIdParamSchema)
+  @ApiBodySchema(UpdateDriverInfoRequestSchema)
+  @ApiResponseSchema({ 200: driverResponseSchema })
+  @Route('patch', '/drivers/:id')
+  async updateDriver(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const dto = new UpdateDriverInfoRequest({
+      driverId: id,
+      ...(request.body as Omit<UpdateDriverInfoRequestDTO, 'driverId'>),
     });
+    const driver = await this.updateDriverInfo.execute(dto);
     return reply.status(200).send(driverPresenter.toResponse(driver));
   }
 
-  private async handleDeactivate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = driverIdParamSchema.safeParse(request.params);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const driver = await this.deactivateDriver.execute({ driverId: parsed.data.id });
+  @ApiTag('Drivers')
+  @ApiOperation('Desativar motorista')
+  @ApiParamsSchema(driverIdParamSchema)
+  @ApiResponseSchema({ 200: driverResponseSchema })
+  @Route('delete', '/drivers/:id')
+  async deactivateDriverHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const driver = await this.deactivateDriver.execute({ driverId: id });
     return reply.status(200).send(driverPresenter.toResponse(driver));
   }
 }

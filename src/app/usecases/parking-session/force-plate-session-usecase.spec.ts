@@ -10,6 +10,7 @@ import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositor
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
 import { InMemoryDomainEventPublisher } from '@app/tests/factories/in-memory-domain-event-publisher.ts';
 import { ForcePlateSessionUseCase } from '@app/usecases/parking-session/force-plate-session-usecase.ts';
+import { ForcePlateSessionRequest } from '@app/dto/inputs/parking-session/force-plate-session-input.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
 
 describe('ForcePlateSessionUseCase', () => {
@@ -34,17 +35,17 @@ describe('ForcePlateSessionUseCase', () => {
     session.pullDomainEvents();
     await sessions.save(session);
 
-    const updated = await usecase.execute({
-      sessionId: session.id().value(),
-      plate: 'ABC1D23',
-    });
+    const updated = await usecase.execute(
+      new ForcePlateSessionRequest({
+        sessionId: session.id().value(),
+        plate: 'ABC1D23',
+      }),
+    );
 
     expect(updated.hasVehicleAssigned()).toBe(true);
     expect(updated.licensePlate()?.value()).toBe('ABC1D23');
     const stored = await vehicles.findByLicensePlate(LicensePlateVO.from('ABC1D23'));
     expect(stored).not.toBeNull();
-    // assignVehicle does not emit a domain event in the current model;
-    // the publisher is invoked but receives an empty list.
     expect(publisher.published).toEqual([]);
   });
 
@@ -63,24 +64,28 @@ describe('ForcePlateSessionUseCase', () => {
     session.pullDomainEvents();
     await sessions.save(session);
 
-    const updated = await usecase.execute({
-      sessionId: session.id().value(),
-      plate: 'XYZ9K88',
-    });
+    const updated = await usecase.execute(
+      new ForcePlateSessionRequest({
+        sessionId: session.id().value(),
+        plate: 'XYZ9K88',
+      }),
+    );
 
     expect(updated.vehicle()?.id().equals(existing.id())).toBe(true);
   });
 
   it('throws ParkingSessionNotFoundError when missing', async () => {
     await expect(
-      usecase.execute({
-        sessionId: '00000000-0000-4000-8000-000000000000',
-        plate: 'ABC1D23',
-      }),
+      usecase.execute(
+        new ForcePlateSessionRequest({
+          sessionId: '00000000-0000-4000-8000-000000000000',
+          plate: 'ABC1D23',
+        }),
+      ),
     ).rejects.toBeInstanceOf(ParkingSessionNotFoundError);
   });
 
-  it('throws InvalidLicensePlateError when plate is invalid', async () => {
+  it('throws InvalidLicensePlateError when plate has valid length but invalid format', async () => {
     const parkingLotId = UniqueIdentifier.create();
     const session = ParkingSession.enter({
       parkingLotId,
@@ -89,7 +94,9 @@ describe('ForcePlateSessionUseCase', () => {
     await sessions.save(session);
 
     await expect(
-      usecase.execute({ sessionId: session.id().value(), plate: 'NOT-VALID' }),
+      usecase.execute(
+        new ForcePlateSessionRequest({ sessionId: session.id().value(), plate: 'AAAAAAA' }),
+      ),
     ).rejects.toBeInstanceOf(InvalidLicensePlateError);
   });
 
@@ -108,7 +115,9 @@ describe('ForcePlateSessionUseCase', () => {
     await sessions.save(session);
 
     await expect(
-      usecase.execute({ sessionId: session.id().value(), plate: 'XYZ9K88' }),
+      usecase.execute(
+        new ForcePlateSessionRequest({ sessionId: session.id().value(), plate: 'XYZ9K88' }),
+      ),
     ).rejects.toBeInstanceOf(SessionAlreadyHasVehicleError);
   });
 });

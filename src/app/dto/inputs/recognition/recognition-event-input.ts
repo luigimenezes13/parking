@@ -1,5 +1,7 @@
 import { z } from 'zod/v4';
 
+import { RequestDto } from '@infra/http/request-dto.ts';
+
 const baseSchema = z.object({
   plate: z.string().nullable(),
   timestamp: z.iso.datetime({ offset: true }),
@@ -24,11 +26,17 @@ const vehicleExitedSchema = baseSchema.extend({
   event: z.literal('vehicle.exited'),
 });
 
-export const recognitionEventSchema = z.discriminatedUnion('event', [
+export const RecognitionEventRequestSchema = z.discriminatedUnion('event', [
   vehicleEnteredSchema,
   spotOccupiedSchema,
   spotReleasedSchema,
   vehicleExitedSchema,
 ]);
 
-export type RecognitionEventInput = z.infer<typeof recognitionEventSchema>;
+export type RecognitionEventRequestDTO = z.infer<typeof RecognitionEventRequestSchema>;
+
+export class RecognitionEventRequest extends RequestDto<RecognitionEventRequestDTO> {
+  constructor(input: RecognitionEventRequestDTO) {
+    super(input, RecognitionEventRequestSchema);
+  }
+}
