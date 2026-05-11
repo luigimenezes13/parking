@@ -85,7 +85,7 @@ describe('ForcePlateSessionUseCase', () => {
     ).rejects.toBeInstanceOf(ParkingSessionNotFoundError);
   });
 
-  it('throws InvalidLicensePlateError when plate is invalid', async () => {
+  it('throws InvalidLicensePlateError when plate has valid length but invalid format', async () => {
     const parkingLotId = UniqueIdentifier.create();
     const session = ParkingSession.enter({
       parkingLotId,
@@ -95,7 +95,7 @@ describe('ForcePlateSessionUseCase', () => {
 
     await expect(
       usecase.execute(
-        new ForcePlateSessionRequest({ sessionId: session.id().value(), plate: 'NOT-VALID' }),
+        new ForcePlateSessionRequest({ sessionId: session.id().value(), plate: 'AAAAAAA' }),
       ),
     ).rejects.toBeInstanceOf(InvalidLicensePlateError);
   });

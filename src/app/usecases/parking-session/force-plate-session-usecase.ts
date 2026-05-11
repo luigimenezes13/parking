@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { ForcePlateSessionRequest } from '@app/dto/inputs/parking-session/force-plate-session-input.ts';
+import { type ForcePlateSessionRequest } from '@app/dto/inputs/parking-session/force-plate-session-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';

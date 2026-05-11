@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { CreateParkingSpotRequest } from '@app/dto/inputs/parking-spot/create-parking-spot-input.ts';
+import { type CreateParkingSpotRequest } from '@app/dto/inputs/parking-spot/create-parking-spot-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
@@ -18,9 +18,10 @@ export interface CreateParkingSpotOutput {
 }
 
 @injectable()
-export class CreateParkingSpotUseCase
-  implements UseCase<CreateParkingSpotRequest, CreateParkingSpotOutput>
-{
+export class CreateParkingSpotUseCase implements UseCase<
+  CreateParkingSpotRequest,
+  CreateParkingSpotOutput
+> {
   private readonly parkingSpots: ParkingSpotRepository;
   private readonly parkingLots: ParkingLotRepository;
 

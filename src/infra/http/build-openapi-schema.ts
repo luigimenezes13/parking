@@ -46,7 +46,7 @@ export function buildOpenApiSchema(input: OpenApiBuildInput): Record<string, unk
 }
 
 function toJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return z.toJSONSchema(schema, { target: 'openapi-3.0', unrepresentable: 'any' }) as Record<
+  return z.toJSONSchema(schema, { target: 'draft-7', unrepresentable: 'any' }) as Record<
     string,
     unknown
   >;

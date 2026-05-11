@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { CreateParkingLotRequest } from '@app/dto/inputs/parking-lot/create-parking-lot-input.ts';
+import { type CreateParkingLotRequest } from '@app/dto/inputs/parking-lot/create-parking-lot-input.ts';
 import { ParkingLot } from '@domain/parking/entities/parking-lot.ts';
 import { type ParkingLotRepository } from '@domain/parking/repositories/parking-lot-repository.ts';
 
@@ -11,9 +11,10 @@ export interface CreateParkingLotOutput {
 }
 
 @injectable()
-export class CreateParkingLotUseCase
-  implements UseCase<CreateParkingLotRequest, CreateParkingLotOutput>
-{
+export class CreateParkingLotUseCase implements UseCase<
+  CreateParkingLotRequest,
+  CreateParkingLotOutput
+> {
   private readonly parkingLots: ParkingLotRepository;
 
   constructor(@inject(TYPES.ParkingLotRepository) parkingLots: ParkingLotRepository) {

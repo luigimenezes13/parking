@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { RegisterDriverRequest } from '@app/dto/inputs/driver/register-driver-input.ts';
+import { type RegisterDriverRequest } from '@app/dto/inputs/driver/register-driver-input.ts';
 import { Driver } from '@domain/parking/entities/driver.ts';
 import { type DriverRepository } from '@domain/parking/repositories/driver-repository.ts';
 import { DuplicateDriverCnhError } from '@app/exceptions/driver/duplicate-driver-cnh-error.ts';

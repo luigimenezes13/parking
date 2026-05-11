@@ -1,4 +1,4 @@
-import { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { type FastifyReply, type FastifyRequest } from 'fastify';
 import { inject, injectable } from 'inversify';
 import { z } from 'zod/v4';
 
@@ -7,44 +7,47 @@ import { GetParkingSpotByIdUseCase } from '@app/usecases/parking-spot/get-parkin
 import { ListParkingSpotsByLotUseCase } from '@app/usecases/parking-spot/list-parking-spots-by-lot-usecase.ts';
 import { UpdateParkingSpotMetadataUseCase } from '@app/usecases/parking-spot/update-parking-spot-metadata-usecase.ts';
 import { DeactivateParkingSpotUseCase } from '@app/usecases/parking-spot/deactivate-parking-spot-usecase.ts';
+import {
+  CreateParkingSpotRequest,
+  CreateParkingSpotRequestSchema,
+  type CreateParkingSpotRequestDTO,
+} from '@app/dto/inputs/parking-spot/create-parking-spot-input.ts';
+import {
+  UpdateParkingSpotMetadataRequest,
+  UpdateParkingSpotMetadataRequestSchema,
+  type UpdateParkingSpotMetadataRequestDTO,
+} from '@app/dto/inputs/parking-spot/update-parking-spot-metadata-input.ts';
 import { parkingSpotPresenter } from '@infra/controllers/parking-spot-presenter.ts';
+import { FastifyController } from '@infra/http/fastify-controller.ts';
+import {
+  ApiBodySchema,
+  ApiOperation,
+  ApiParamsSchema,
+  ApiResponseSchema,
+  ApiTag,
+  Route,
+} from '@infra/http/decorators/index.ts';
 
-const spotTypeEnum = z.enum([
-  'REGULAR',
-  'COMPACT',
-  'LARGE',
-  'MOTORCYCLE',
-  'ACCESSIBLE',
-  'ELECTRIC',
-]);
+const spotIdParamSchema = z.object({ id: z.uuid() });
+const lotIdParamSchema = z.object({ lotId: z.uuid() });
 
-const createBodySchema = z.object({
-  code: z.string().min(1).max(16),
-  floor: z.number().int(),
-  row: z.number().int().positive(),
-  column: z.number().int().positive(),
-  isCovered: z.boolean(),
-  spotType: spotTypeEnum,
-});
-
-const updateBodySchema = z.object({
-  floor: z.number().int(),
-  row: z.number().int().positive(),
-  column: z.number().int().positive(),
-  isCovered: z.boolean(),
-  spotType: spotTypeEnum,
-});
-
-const spotIdParamSchema = z.object({
+const parkingSpotResponseSchema = z.object({
   id: z.uuid(),
+  parkingLotId: z.uuid(),
+  code: z.string(),
+  floor: z.number().int(),
+  row: z.number().int(),
+  column: z.number().int(),
+  isCovered: z.boolean(),
+  spotType: z.string(),
+  status: z.string(),
+  deactivatedAt: z.string().nullable(),
 });
 
-const lotIdParamSchema = z.object({
-  lotId: z.uuid(),
-});
+const createdResponseSchema = z.object({ id: z.uuid() });
 
 @injectable()
-export class ParkingSpotController {
+export class ParkingSpotController extends FastifyController {
   private readonly createParkingSpot: CreateParkingSpotUseCase;
   private readonly getParkingSpotById: GetParkingSpotByIdUseCase;
   private readonly listParkingSpotsByLot: ListParkingSpotsByLotUseCase;
@@ -59,6 +62,7 @@ export class ParkingSpotController {
     updateParkingSpotMetadata: UpdateParkingSpotMetadataUseCase,
     @inject(DeactivateParkingSpotUseCase) deactivateParkingSpot: DeactivateParkingSpotUseCase,
   ) {
+    super();
     this.createParkingSpot = createParkingSpot;
     this.getParkingSpotById = getParkingSpotById;
     this.listParkingSpotsByLot = listParkingSpotsByLot;
@@ -66,77 +70,68 @@ export class ParkingSpotController {
     this.deactivateParkingSpot = deactivateParkingSpot;
   }
 
-  register(server: FastifyInstance): void {
-    server.post('/parking-lots/:lotId/spots', this.handleCreate.bind(this));
-    server.get('/parking-lots/:lotId/spots', this.handleListByLot.bind(this));
-    server.get('/parking-spots/:id', this.handleGetById.bind(this));
-    server.patch('/parking-spots/:id', this.handleUpdate.bind(this));
-    server.delete('/parking-spots/:id', this.handleDeactivate.bind(this));
-  }
-
-  private async handleCreate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const params = lotIdParamSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: params.error.format() });
-    }
-
-    const body = createBodySchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: body.error.format() });
-    }
-
-    const result = await this.createParkingSpot.execute({
-      parkingLotId: params.data.lotId,
-      ...body.data,
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Criar vaga')
+  @ApiParamsSchema(lotIdParamSchema)
+  @ApiBodySchema(CreateParkingSpotRequestSchema)
+  @ApiResponseSchema({ 201: createdResponseSchema })
+  @Route('post', '/parking-lots/:lotId/spots')
+  async createParkingSpotHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { lotId } = request.params as { lotId: string };
+    const dto = new CreateParkingSpotRequest({
+      parkingLotId: lotId,
+      ...(request.body as Omit<CreateParkingSpotRequestDTO, 'parkingLotId'>),
     });
-    return reply.status(201).send({ id: result.parkingSpotId });
+    const { parkingSpotId } = await this.createParkingSpot.execute(dto);
+    return reply.status(201).send({ id: parkingSpotId });
   }
 
-  private async handleListByLot(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = lotIdParamSchema.safeParse(request.params);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const items = await this.listParkingSpotsByLot.execute({ parkingLotId: parsed.data.lotId });
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Listar vagas do estacionamento')
+  @ApiParamsSchema(lotIdParamSchema)
+  @ApiResponseSchema({ 200: z.array(parkingSpotResponseSchema) })
+  @Route('get', '/parking-lots/:lotId/spots')
+  async listParkingSpotsByLotHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { lotId } = request.params as { lotId: string };
+    const items = await this.listParkingSpotsByLot.execute({ parkingLotId: lotId });
     return reply.status(200).send(items.map((item) => parkingSpotPresenter.toResponse(item)));
   }
 
-  private async handleGetById(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = spotIdParamSchema.safeParse(request.params);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const spot = await this.getParkingSpotById.execute({ parkingSpotId: parsed.data.id });
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Buscar vaga por id')
+  @ApiParamsSchema(spotIdParamSchema)
+  @ApiResponseSchema({ 200: parkingSpotResponseSchema })
+  @Route('get', '/parking-spots/:id')
+  async getParkingSpotByIdHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const spot = await this.getParkingSpotById.execute({ parkingSpotId: id });
     return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
   }
 
-  private async handleUpdate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const params = spotIdParamSchema.safeParse(request.params);
-    if (!params.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: params.error.format() });
-    }
-
-    const body = updateBodySchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: body.error.format() });
-    }
-
-    const spot = await this.updateParkingSpotMetadata.execute({
-      parkingSpotId: params.data.id,
-      ...body.data,
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Atualizar metadados da vaga')
+  @ApiParamsSchema(spotIdParamSchema)
+  @ApiBodySchema(UpdateParkingSpotMetadataRequestSchema)
+  @ApiResponseSchema({ 200: parkingSpotResponseSchema })
+  @Route('patch', '/parking-spots/:id')
+  async updateParkingSpotHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const dto = new UpdateParkingSpotMetadataRequest({
+      parkingSpotId: id,
+      ...(request.body as Omit<UpdateParkingSpotMetadataRequestDTO, 'parkingSpotId'>),
     });
+    const spot = await this.updateParkingSpotMetadata.execute(dto);
     return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
   }
 
-  private async handleDeactivate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const parsed = spotIdParamSchema.safeParse(request.params);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'invalid_payload', details: parsed.error.format() });
-    }
-
-    const spot = await this.deactivateParkingSpot.execute({ parkingSpotId: parsed.data.id });
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Desativar vaga')
+  @ApiParamsSchema(spotIdParamSchema)
+  @ApiResponseSchema({ 200: parkingSpotResponseSchema })
+  @Route('delete', '/parking-spots/:id')
+  async deactivateParkingSpotHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const spot = await this.deactivateParkingSpot.execute({ parkingSpotId: id });
     return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
   }
 }

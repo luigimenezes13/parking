@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
-import { ForceFinishSessionRequest } from '@app/dto/inputs/parking-session/force-finish-session-input.ts';
+import { type ForceFinishSessionRequest } from '@app/dto/inputs/parking-session/force-finish-session-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { type ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
 import { type ParkingSessionRepository } from '@domain/parking/repositories/parking-session-repository.ts';
@@ -10,9 +10,10 @@ import { type DomainEventPublisher } from '@domain/shared/events/domain-event-pu
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
 
 @injectable()
-export class ForceFinishSessionUseCase
-  implements UseCase<ForceFinishSessionRequest, ParkingSession>
-{
+export class ForceFinishSessionUseCase implements UseCase<
+  ForceFinishSessionRequest,
+  ParkingSession
+> {
   private readonly sessions: ParkingSessionRepository;
   private readonly publisher: DomainEventPublisher;
 
