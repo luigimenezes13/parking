@@ -9,7 +9,7 @@ import { type ParkingSpot as ParkingSpotRow } from '@infra/database/types/Types.
 
 export type SelectableParkingSpot = Pick<
   Selectable<ParkingSpotRow>,
-  'id' | 'parking_lot_id' | 'code' | 'floor' | 'is_covered' | 'status'
+  'id' | 'parking_lot_id' | 'code' | 'floor' | 'is_covered' | 'status' | 'deactivated_at'
 >;
 
 export type InsertableParkingSpotRow = {
@@ -21,6 +21,7 @@ export type InsertableParkingSpotRow = {
   status: 'FREE' | 'OCCUPIED' | 'RESERVED';
   created_at: Date;
   updated_at: Date;
+  deactivated_at: Date | null;
 };
 
 @injectable()
@@ -33,6 +34,7 @@ export class ParkingSpotMapper {
         floor: row.floor,
         isCovered: row.is_covered,
         status: SpotStatusVO.fromExisting(row.status),
+        deactivatedAt: row.deactivated_at,
       },
       UniqueIdentifier.fromExisting(row.id),
     );
@@ -50,12 +52,18 @@ export class ParkingSpotMapper {
       status: spot.status().serialize(),
       created_at: now,
       updated_at: now,
+      deactivated_at: spot.deactivatedAt(),
     };
   }
 
-  toUpdate(spot: ParkingSpot): { status: 'FREE' | 'OCCUPIED' | 'RESERVED'; updated_at: Date } {
+  toUpdate(spot: ParkingSpot): {
+    status: 'FREE' | 'OCCUPIED' | 'RESERVED';
+    deactivated_at: Date | null;
+    updated_at: Date;
+  } {
     return {
       status: spot.status().serialize(),
+      deactivated_at: spot.deactivatedAt(),
       updated_at: new Date(),
     };
   }

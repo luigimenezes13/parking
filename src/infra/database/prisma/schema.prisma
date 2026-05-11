@@ -25,13 +25,14 @@ enum SessionStatus {
 }
 
 model Driver {
-  id        String   @id @db.Uuid
-  cnh       String   @unique
-  name      String
-  email     String   @unique
-  phone     String
-  createdAt DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
-  updatedAt DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
+  id            String    @id @db.Uuid
+  cnh           String    @unique
+  name          String
+  email         String    @unique
+  phone         String
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deactivatedAt DateTime? @db.Timestamptz(3) @map("deactivated_at")
 
   vehicles Vehicle[]
 
@@ -39,12 +40,13 @@ model Driver {
 }
 
 model ParkingLot {
-  id            String   @id @db.Uuid
+  id            String    @id @db.Uuid
   name          String
   address       String
-  totalCapacity Int @map("total_capacity")
-  createdAt     DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
+  totalCapacity Int       @map("total_capacity")
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deactivatedAt DateTime? @db.Timestamptz(3) @map("deactivated_at")
 
   spots    ParkingSpot[]
   vehicles Vehicle[]
@@ -54,14 +56,15 @@ model ParkingLot {
 }
 
 model ParkingSpot {
-  id           String     @id @db.Uuid
-  parkingLotId String     @db.Uuid @map("parking_lot_id")
-  code         String
-  floor        Int
-  isCovered    Boolean @map("is_covered")
-  status       SpotStatus @default(FREE)
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3) @map("created_at")
-  updatedAt    DateTime   @updatedAt @db.Timestamptz(3) @map("updated_at")
+  id            String     @id @db.Uuid
+  parkingLotId  String     @db.Uuid @map("parking_lot_id")
+  code          String
+  floor         Int
+  isCovered     Boolean    @map("is_covered")
+  status        SpotStatus @default(FREE)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deactivatedAt DateTime?  @db.Timestamptz(3) @map("deactivated_at")
 
   parkingLot ParkingLot       @relation(fields: [parkingLotId], references: [id], onDelete: Restrict)
   sessions   ParkingSession[]
@@ -71,15 +74,16 @@ model ParkingSpot {
 }
 
 model Vehicle {
-  id           String   @id @db.Uuid
-  driverId     String?  @db.Uuid @map("driver_id")
-  parkingLotId String   @db.Uuid @map("parking_lot_id")
-  licensePlate String   @unique @map("license_plate")
-  brand        String?
-  model        String?
-  color        String?
-  createdAt    DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
+  id            String    @id @db.Uuid
+  driverId      String?   @db.Uuid @map("driver_id")
+  parkingLotId  String    @db.Uuid @map("parking_lot_id")
+  licensePlate  String    @unique @map("license_plate")
+  brand         String?
+  model         String?
+  color         String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deactivatedAt DateTime? @db.Timestamptz(3) @map("deactivated_at")
 
   driver     Driver?          @relation(fields: [driverId], references: [id], onDelete: SetNull)
   parkingLot ParkingLot       @relation(fields: [parkingLotId], references: [id], onDelete: Restrict)

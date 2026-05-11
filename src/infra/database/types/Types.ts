@@ -14,6 +14,7 @@ export type Driver = {
     phone: string;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type ParkingLot = {
     id: string;
@@ -22,6 +23,7 @@ export type ParkingLot = {
     total_capacity: number;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type ParkingSession = {
     id: string;
@@ -44,6 +46,7 @@ export type ParkingSpot = {
     status: Generated<SpotStatus>;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type Vehicle = {
     id: string;
@@ -55,6 +58,7 @@ export type Vehicle = {
     color: string | null;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
 };
 export type DB = {
     drivers: Driver;

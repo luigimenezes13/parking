@@ -6,6 +6,8 @@ export const TYPES = {
   ParkingSpotMapper: Symbol('ParkingSpotMapper'),
   VehicleMapper: Symbol('VehicleMapper'),
   ParkingSessionMapper: Symbol('ParkingSessionMapper'),
+  DriverMapper: Symbol('DriverMapper'),
+  ParkingLotMapper: Symbol('ParkingLotMapper'),
 
   // Repositories (interfaces in domain, impls in infra)
   ParkingSpotRepository: Symbol('ParkingSpotRepository'),
