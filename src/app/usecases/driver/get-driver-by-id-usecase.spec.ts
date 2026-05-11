@@ -1,36 +1,40 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Driver } from '@domain/parking/entities/driver.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { GetDriverByIdUseCase } from '@app/usecases/driver/get-driver-by-id-usecase.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
+import { makeDriver } from '@domain/parking/__tests__/factories/driver.factory.ts';
+
+interface Setup {
+  drivers: InMemoryDriverRepository;
+  usecase: GetDriverByIdUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const drivers = new InMemoryDriverRepository();
+  const usecase = new GetDriverByIdUseCase(drivers);
+  return { drivers, usecase };
+}
 
 describe('GetDriverByIdUseCase', () => {
-  let drivers: InMemoryDriverRepository;
-  let usecase: GetDriverByIdUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    drivers = new InMemoryDriverRepository();
-    usecase = new GetDriverByIdUseCase(drivers);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('returns the driver when found', async () => {
-    const driver = Driver.register({
-      cnh: '12345678901',
-      name: 'Joao',
-      email: 'joao@example.com',
-      phone: '+5511999999999',
-    });
-    await drivers.save(driver);
+    const driver = makeDriver();
+    await setup.drivers.save(driver);
 
-    const found = await usecase.execute({ driverId: driver.id().value() });
+    const found = await setup.usecase.execute({ driverId: driver.id().value() });
 
     expect(found.id().equals(driver.id())).toBe(true);
   });
 
   it('throws DriverNotFoundError when missing', async () => {
     await expect(
-      usecase.execute({ driverId: '00000000-0000-4000-8000-000000000000' }),
+      setup.usecase.execute({ driverId: '00000000-0000-4000-8000-000000000000' }),
     ).rejects.toBeInstanceOf(DriverNotFoundError);
   });
 });

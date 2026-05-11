@@ -1,24 +1,32 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Driver } from '@domain/parking/entities/driver.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { RegisterDriverUseCase } from '@app/usecases/driver/register-driver-usecase.ts';
 import { RegisterDriverRequest } from '@app/dto/inputs/driver/register-driver-input.ts';
 import { DuplicateDriverCnhError } from '@app/exceptions/driver/duplicate-driver-cnh-error.ts';
 import { DuplicateDriverEmailError } from '@app/exceptions/driver/duplicate-driver-email-error.ts';
+import { makeDriver } from '@domain/parking/__tests__/factories/driver.factory.ts';
+
+interface Setup {
+  drivers: InMemoryDriverRepository;
+  usecase: RegisterDriverUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const drivers = new InMemoryDriverRepository();
+  const usecase = new RegisterDriverUseCase(drivers);
+  return { drivers, usecase };
+}
 
 describe('RegisterDriverUseCase', () => {
-  let drivers: InMemoryDriverRepository;
-  let usecase: RegisterDriverUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    // TODO: Use a factory to create the entities
-    drivers = new InMemoryDriverRepository();
-    usecase = new RegisterDriverUseCase(drivers);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('persists a new driver and returns the generated identifier', async () => {
-    const result = await usecase.execute(
+    const result = await setup.usecase.execute(
       new RegisterDriverRequest({
         cnh: '12345678901',
         name: 'Joao Silva',
@@ -28,23 +36,16 @@ describe('RegisterDriverUseCase', () => {
     );
 
     expect(result.driverId).toBeDefined();
-    const stored = await drivers.findByCnh('12345678901');
+    const stored = await setup.drivers.findByCnh('12345678901');
     expect(stored?.name()).toBe('Joao Silva');
     expect(stored?.isActive()).toBe(true);
   });
 
   it('throws DuplicateDriverCnhError when CNH is already taken', async () => {
-    await drivers.save(
-      Driver.register({
-        cnh: '12345678901',
-        name: 'First',
-        email: 'first@example.com',
-        phone: '+5511111111111',
-      }),
-    );
+    await setup.drivers.save(makeDriver({ cnh: '12345678901', email: 'first@example.com' }));
 
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new RegisterDriverRequest({
           cnh: '12345678901',
           name: 'Second',
@@ -56,17 +57,10 @@ describe('RegisterDriverUseCase', () => {
   });
 
   it('throws DuplicateDriverEmailError when email is already taken', async () => {
-    await drivers.save(
-      Driver.register({
-        cnh: '11111111111',
-        name: 'First',
-        email: 'shared@example.com',
-        phone: '+5511111111111',
-      }),
-    );
+    await setup.drivers.save(makeDriver({ cnh: '11111111111', email: 'shared@example.com' }));
 
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new RegisterDriverRequest({
           cnh: '22222222222',
           name: 'Second',

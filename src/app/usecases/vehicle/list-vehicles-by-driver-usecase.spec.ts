@@ -1,64 +1,53 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
-import { Driver } from '@domain/parking/entities/driver.ts';
-import { Vehicle } from '@domain/parking/entities/vehicle.ts';
-import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
 import { ListVehiclesByDriverUseCase } from '@app/usecases/vehicle/list-vehicles-by-driver-usecase.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
+import { makeDriver } from '@domain/parking/__tests__/factories/driver.factory.ts';
+import { makeVehicle } from '@domain/parking/__tests__/factories/vehicle.factory.ts';
+
+interface Setup {
+  drivers: InMemoryDriverRepository;
+  vehicles: InMemoryVehicleRepository;
+  usecase: ListVehiclesByDriverUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const drivers = new InMemoryDriverRepository();
+  const vehicles = new InMemoryVehicleRepository();
+  const usecase = new ListVehiclesByDriverUseCase(vehicles, drivers);
+  return { drivers, vehicles, usecase };
+}
 
 describe('ListVehiclesByDriverUseCase', () => {
-  let drivers: InMemoryDriverRepository;
-  let vehicles: InMemoryVehicleRepository;
-  let usecase: ListVehiclesByDriverUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    drivers = new InMemoryDriverRepository();
-    vehicles = new InMemoryVehicleRepository();
-    usecase = new ListVehiclesByDriverUseCase(vehicles, drivers);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('returns all vehicles for the driver', async () => {
-    const driver = Driver.register({
-      cnh: '11111111111',
-      name: 'Maria',
-      email: 'maria@example.com',
-      phone: '+5511999999999',
-    });
-    await drivers.save(driver);
+    const driver = makeDriver();
+    await setup.drivers.save(driver);
 
     const lot = UniqueIdentifier.create();
-    await vehicles.save(
-      Vehicle.register({
-        driverId: driver.id(),
-        parkingLotId: lot,
-        licensePlate: LicensePlateVO.from('AAA1A11'),
-        brand: null,
-        model: null,
-        color: null,
-      }),
+    await setup.vehicles.save(
+      makeVehicle({ driverId: driver.id(), parkingLotId: lot, licensePlate: 'AAA1A11' }),
     );
-    await vehicles.save(
-      Vehicle.register({
-        driverId: driver.id(),
-        parkingLotId: lot,
-        licensePlate: LicensePlateVO.from('BBB2B22'),
-        brand: null,
-        model: null,
-        color: null,
-      }),
+    await setup.vehicles.save(
+      makeVehicle({ driverId: driver.id(), parkingLotId: lot, licensePlate: 'BBB2B22' }),
     );
 
-    const found = await usecase.execute({ driverId: driver.id().value() });
+    const found = await setup.usecase.execute({ driverId: driver.id().value() });
 
     expect(found).toHaveLength(2);
   });
 
   it('throws DriverNotFoundError when driver does not exist', async () => {
     await expect(
-      usecase.execute({ driverId: '00000000-0000-4000-8000-000000000000' }),
+      setup.usecase.execute({ driverId: '00000000-0000-4000-8000-000000000000' }),
     ).rejects.toBeInstanceOf(DriverNotFoundError);
   });
 });

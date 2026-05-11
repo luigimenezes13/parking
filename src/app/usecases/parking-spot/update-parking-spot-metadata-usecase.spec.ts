@@ -8,20 +8,29 @@ import { UpdateParkingSpotMetadataRequest } from '@app/dto/inputs/parking-spot/u
 import { ParkingSpotNotFoundError } from '@app/exceptions/parking-spot/parking-spot-not-found-error.ts';
 import { DuplicateSpotPositionError } from '@app/exceptions/parking-spot/duplicate-spot-position-error.ts';
 
-describe('UpdateParkingSpotMetadataUseCase', () => {
-  let spots: InMemoryParkingSpotRepository;
-  let usecase: UpdateParkingSpotMetadataUseCase;
+interface Setup {
+  spots: InMemoryParkingSpotRepository;
+  usecase: UpdateParkingSpotMetadataUseCase;
+}
 
-  beforeEach(() => {
-    spots = new InMemoryParkingSpotRepository();
-    usecase = new UpdateParkingSpotMetadataUseCase(spots);
+async function makeSetup(): Promise<Setup> {
+  const spots = new InMemoryParkingSpotRepository();
+  const usecase = new UpdateParkingSpotMetadataUseCase(spots);
+  return { spots, usecase };
+}
+
+describe('UpdateParkingSpotMetadataUseCase', () => {
+  let setup: Setup;
+
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('updates metadata fields', async () => {
     const spot = makeParkingSpot({ code: 'A1', floor: 1, row: 1, column: 1 });
-    await spots.save(spot);
+    await setup.spots.save(spot);
 
-    const updated = await usecase.execute(
+    const updated = await setup.usecase.execute(
       new UpdateParkingSpotMetadataRequest({
         parkingSpotId: spot.id().value(),
         floor: 2,
@@ -41,7 +50,7 @@ describe('UpdateParkingSpotMetadataUseCase', () => {
 
   it('throws ParkingSpotNotFoundError when missing', async () => {
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new UpdateParkingSpotMetadataRequest({
           parkingSpotId: '00000000-0000-4000-8000-000000000000',
           floor: 1,
@@ -70,11 +79,11 @@ describe('UpdateParkingSpotMetadataUseCase', () => {
       row: 1,
       column: 2,
     });
-    await spots.save(occupied);
-    await spots.save(target);
+    await setup.spots.save(occupied);
+    await setup.spots.save(target);
 
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new UpdateParkingSpotMetadataRequest({
           parkingSpotId: target.id().value(),
           floor: 1,
