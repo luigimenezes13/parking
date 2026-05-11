@@ -2,6 +2,7 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
+import { CreateParkingSpotRequest } from '@app/dto/inputs/parking-spot/create-parking-spot-input.ts';
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { SpotCodeVO } from '@domain/parking/value-objects/spot-code-vo.ts';
 import { SpotTypeVO } from '@domain/parking/value-objects/spot-type-vo.ts';
@@ -12,25 +13,14 @@ import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot
 import { DuplicateSpotCodeError } from '@app/exceptions/parking-spot/duplicate-spot-code-error.ts';
 import { DuplicateSpotPositionError } from '@app/exceptions/parking-spot/duplicate-spot-position-error.ts';
 
-export interface CreateParkingSpotInput {
-  parkingLotId: string;
-  code: string;
-  floor: number;
-  row: number;
-  column: number;
-  isCovered: boolean;
-  spotType: 'REGULAR' | 'COMPACT' | 'LARGE' | 'MOTORCYCLE' | 'ACCESSIBLE' | 'ELECTRIC';
-}
-
 export interface CreateParkingSpotOutput {
   parkingSpotId: string;
 }
 
 @injectable()
-export class CreateParkingSpotUseCase implements UseCase<
-  CreateParkingSpotInput,
-  CreateParkingSpotOutput
-> {
+export class CreateParkingSpotUseCase
+  implements UseCase<CreateParkingSpotRequest, CreateParkingSpotOutput>
+{
   private readonly parkingSpots: ParkingSpotRepository;
   private readonly parkingLots: ParkingLotRepository;
 
@@ -42,42 +32,47 @@ export class CreateParkingSpotUseCase implements UseCase<
     this.parkingLots = parkingLots;
   }
 
-  async execute(input: CreateParkingSpotInput): Promise<CreateParkingSpotOutput> {
-    const parkingLotId = UniqueIdentifier.fromExisting(input.parkingLotId);
+  async execute(input: CreateParkingSpotRequest): Promise<CreateParkingSpotOutput> {
+    const {
+      parkingLotId: parkingLotIdInput,
+      code: codeInput,
+      floor,
+      row,
+      column,
+      isCovered,
+      spotType,
+    } = input.props;
+
+    const parkingLotId = UniqueIdentifier.fromExisting(parkingLotIdInput);
     const parkingLot = await this.parkingLots.findById(parkingLotId);
     if (!parkingLot || parkingLot.isDeactivated()) {
-      throw new ParkingLotNotFoundError(input.parkingLotId);
+      throw new ParkingLotNotFoundError(parkingLotIdInput);
     }
 
-    const code = SpotCodeVO.from(input.code);
+    const code = SpotCodeVO.from(codeInput);
     const existingByCode = await this.parkingSpots.findByCode(parkingLotId, code);
     if (existingByCode) {
-      throw new DuplicateSpotCodeError(input.parkingLotId, code.value());
+      throw new DuplicateSpotCodeError(parkingLotIdInput, code.value());
     }
 
     const existingByPosition = await this.parkingSpots.findByPosition({
       parkingLotId,
-      floor: input.floor,
-      row: input.row,
-      column: input.column,
+      floor,
+      row,
+      column,
     });
     if (existingByPosition) {
-      throw new DuplicateSpotPositionError(
-        input.parkingLotId,
-        input.floor,
-        input.row,
-        input.column,
-      );
+      throw new DuplicateSpotPositionError(parkingLotIdInput, floor, row, column);
     }
 
     const spot = ParkingSpot.register({
       parkingLotId,
       code,
-      floor: input.floor,
-      row: input.row,
-      column: input.column,
-      isCovered: input.isCovered,
-      spotType: SpotTypeVO.fromExisting(input.spotType),
+      floor,
+      row,
+      column,
+      isCovered,
+      spotType: SpotTypeVO.fromExisting(spotType),
     });
 
     await this.parkingSpots.save(spot);

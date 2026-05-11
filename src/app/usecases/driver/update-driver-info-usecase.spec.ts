@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Driver } from '@domain/parking/entities/driver.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { UpdateDriverInfoUseCase } from '@app/usecases/driver/update-driver-info-usecase.ts';
+import { UpdateDriverInfoRequest } from '@app/dto/inputs/driver/update-driver-info-input.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
 import { DuplicateDriverEmailError } from '@app/exceptions/driver/duplicate-driver-email-error.ts';
 
@@ -24,12 +25,14 @@ describe('UpdateDriverInfoUseCase', () => {
     });
     await drivers.save(driver);
 
-    const updated = await usecase.execute({
-      driverId: driver.id().value(),
-      name: 'New',
-      email: 'new@example.com',
-      phone: '+5511222222222',
-    });
+    const updated = await usecase.execute(
+      new UpdateDriverInfoRequest({
+        driverId: driver.id().value(),
+        name: 'New',
+        email: 'new@example.com',
+        phone: '+5511222222222',
+      }),
+    );
 
     expect(updated.name()).toBe('New');
     expect(updated.email()).toBe('new@example.com');
@@ -39,12 +42,14 @@ describe('UpdateDriverInfoUseCase', () => {
 
   it('throws DriverNotFoundError when driver does not exist', async () => {
     await expect(
-      usecase.execute({
-        driverId: '00000000-0000-4000-8000-000000000000',
-        name: 'X',
-        email: 'x@example.com',
-        phone: '+5511000000000',
-      }),
+      usecase.execute(
+        new UpdateDriverInfoRequest({
+          driverId: '00000000-0000-4000-8000-000000000000',
+          name: 'X',
+          email: 'x@example.com',
+          phone: '+5511000000000',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DriverNotFoundError);
   });
 
@@ -65,12 +70,14 @@ describe('UpdateDriverInfoUseCase', () => {
     await drivers.save(other);
 
     await expect(
-      usecase.execute({
-        driverId: target.id().value(),
-        name: 'Target',
-        email: 'other@example.com',
-        phone: '+5511111111111',
-      }),
+      usecase.execute(
+        new UpdateDriverInfoRequest({
+          driverId: target.id().value(),
+          name: 'Target',
+          email: 'other@example.com',
+          phone: '+5511111111111',
+        }),
+      ),
     ).rejects.toBeInstanceOf(DuplicateDriverEmailError);
   });
 
@@ -83,12 +90,14 @@ describe('UpdateDriverInfoUseCase', () => {
     });
     await drivers.save(driver);
 
-    const updated = await usecase.execute({
-      driverId: driver.id().value(),
-      name: 'Updated',
-      email: 'same@example.com',
-      phone: '+5511111111111',
-    });
+    const updated = await usecase.execute(
+      new UpdateDriverInfoRequest({
+        driverId: driver.id().value(),
+        name: 'Updated',
+        email: 'same@example.com',
+        phone: '+5511111111111',
+      }),
+    );
 
     expect(updated.email()).toBe('same@example.com');
     expect(updated.name()).toBe('Updated');

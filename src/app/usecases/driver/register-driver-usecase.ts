@@ -2,47 +2,38 @@ import { inject, injectable } from 'inversify';
 
 import { type UseCase } from '@app/shared/use-case.ts';
 import { TYPES } from '@app/dto/types.ts';
+import { RegisterDriverRequest } from '@app/dto/inputs/driver/register-driver-input.ts';
 import { Driver } from '@domain/parking/entities/driver.ts';
 import { type DriverRepository } from '@domain/parking/repositories/driver-repository.ts';
 import { DuplicateDriverCnhError } from '@app/exceptions/driver/duplicate-driver-cnh-error.ts';
 import { DuplicateDriverEmailError } from '@app/exceptions/driver/duplicate-driver-email-error.ts';
-
-export interface RegisterDriverInput {
-  cnh: string;
-  name: string;
-  email: string;
-  phone: string;
-}
 
 export interface RegisterDriverOutput {
   driverId: string;
 }
 
 @injectable()
-export class RegisterDriverUseCase implements UseCase<RegisterDriverInput, RegisterDriverOutput> {
+export class RegisterDriverUseCase implements UseCase<RegisterDriverRequest, RegisterDriverOutput> {
   private readonly drivers: DriverRepository;
 
   constructor(@inject(TYPES.DriverRepository) drivers: DriverRepository) {
     this.drivers = drivers;
   }
 
-  async execute(input: RegisterDriverInput): Promise<RegisterDriverOutput> {
-    const existingByCnh = await this.drivers.findByCnh(input.cnh);
+  async execute(input: RegisterDriverRequest): Promise<RegisterDriverOutput> {
+    const { cnh, name, email, phone } = input.props;
+
+    const existingByCnh = await this.drivers.findByCnh(cnh);
     if (existingByCnh) {
-      throw new DuplicateDriverCnhError(input.cnh);
+      throw new DuplicateDriverCnhError(cnh);
     }
 
-    const existingByEmail = await this.drivers.findByEmail(input.email);
+    const existingByEmail = await this.drivers.findByEmail(email);
     if (existingByEmail) {
-      throw new DuplicateDriverEmailError(input.email);
+      throw new DuplicateDriverEmailError(email);
     }
 
-    const driver = Driver.register({
-      cnh: input.cnh,
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-    });
+    const driver = Driver.register({ cnh, name, email, phone });
 
     await this.drivers.save(driver);
 
