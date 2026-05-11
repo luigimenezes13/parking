@@ -1,31 +1,40 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Driver } from '@domain/parking/entities/driver.ts';
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { UpdateDriverInfoUseCase } from '@app/usecases/driver/update-driver-info-usecase.ts';
 import { UpdateDriverInfoRequest } from '@app/dto/inputs/driver/update-driver-info-input.ts';
 import { DriverNotFoundError } from '@app/exceptions/driver/driver-not-found-error.ts';
 import { DuplicateDriverEmailError } from '@app/exceptions/driver/duplicate-driver-email-error.ts';
+import { makeDriver } from '@domain/parking/__tests__/factories/driver.factory.ts';
+
+interface Setup {
+  drivers: InMemoryDriverRepository;
+  usecase: UpdateDriverInfoUseCase;
+}
+
+async function makeSetup(): Promise<Setup> {
+  const drivers = new InMemoryDriverRepository();
+  const usecase = new UpdateDriverInfoUseCase(drivers);
+  return { drivers, usecase };
+}
 
 describe('UpdateDriverInfoUseCase', () => {
-  let drivers: InMemoryDriverRepository;
-  let usecase: UpdateDriverInfoUseCase;
+  let setup: Setup;
 
-  beforeEach(() => {
-    drivers = new InMemoryDriverRepository();
-    usecase = new UpdateDriverInfoUseCase(drivers);
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('updates name, email and phone keeping CNH immutable', async () => {
-    const driver = Driver.register({
+    const driver = makeDriver({
       cnh: '12345678901',
       name: 'Old',
       email: 'old@example.com',
       phone: '+5511111111111',
     });
-    await drivers.save(driver);
+    await setup.drivers.save(driver);
 
-    const updated = await usecase.execute(
+    const updated = await setup.usecase.execute(
       new UpdateDriverInfoRequest({
         driverId: driver.id().value(),
         name: 'New',
@@ -42,7 +51,7 @@ describe('UpdateDriverInfoUseCase', () => {
 
   it('throws DriverNotFoundError when driver does not exist', async () => {
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new UpdateDriverInfoRequest({
           driverId: '00000000-0000-4000-8000-000000000000',
           name: 'X',
@@ -54,23 +63,13 @@ describe('UpdateDriverInfoUseCase', () => {
   });
 
   it('throws DuplicateDriverEmailError when new email is owned by another driver', async () => {
-    const target = Driver.register({
-      cnh: '11111111111',
-      name: 'Target',
-      email: 'target@example.com',
-      phone: '+5511111111111',
-    });
-    const other = Driver.register({
-      cnh: '22222222222',
-      name: 'Other',
-      email: 'other@example.com',
-      phone: '+5511222222222',
-    });
-    await drivers.save(target);
-    await drivers.save(other);
+    const target = makeDriver({ cnh: '11111111111', email: 'target@example.com' });
+    const other = makeDriver({ cnh: '22222222222', email: 'other@example.com' });
+    await setup.drivers.save(target);
+    await setup.drivers.save(other);
 
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new UpdateDriverInfoRequest({
           driverId: target.id().value(),
           name: 'Target',
@@ -82,15 +81,10 @@ describe('UpdateDriverInfoUseCase', () => {
   });
 
   it('accepts updating to the same email (no conflict with self)', async () => {
-    const driver = Driver.register({
-      cnh: '12345678901',
-      name: 'Original',
-      email: 'same@example.com',
-      phone: '+5511111111111',
-    });
-    await drivers.save(driver);
+    const driver = makeDriver({ email: 'same@example.com' });
+    await setup.drivers.save(driver);
 
-    const updated = await usecase.execute(
+    const updated = await setup.usecase.execute(
       new UpdateDriverInfoRequest({
         driverId: driver.id().value(),
         name: 'Updated',

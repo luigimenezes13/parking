@@ -5,27 +5,36 @@ import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositor
 import { GetParkingSessionByIdUseCase } from '@app/usecases/parking-session/get-parking-session-by-id-usecase.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
 
-describe('GetParkingSessionByIdUseCase', () => {
-  let sessions: InMemoryParkingSessionRepository;
-  let usecase: GetParkingSessionByIdUseCase;
+interface Setup {
+  sessions: InMemoryParkingSessionRepository;
+  usecase: GetParkingSessionByIdUseCase;
+}
 
-  beforeEach(() => {
-    sessions = new InMemoryParkingSessionRepository();
-    usecase = new GetParkingSessionByIdUseCase(sessions);
+async function makeSetup(): Promise<Setup> {
+  const sessions = new InMemoryParkingSessionRepository();
+  const usecase = new GetParkingSessionByIdUseCase(sessions);
+  return { sessions, usecase };
+}
+
+describe('GetParkingSessionByIdUseCase', () => {
+  let setup: Setup;
+
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('returns the session when found', async () => {
     const session = makeActiveSession();
-    await sessions.save(session);
+    await setup.sessions.save(session);
 
-    const found = await usecase.execute({ sessionId: session.id().value() });
+    const found = await setup.usecase.execute({ sessionId: session.id().value() });
 
     expect(found.id().equals(session.id())).toBe(true);
   });
 
   it('throws ParkingSessionNotFoundError when missing', async () => {
     await expect(
-      usecase.execute({ sessionId: '00000000-0000-4000-8000-000000000000' }),
+      setup.usecase.execute({ sessionId: '00000000-0000-4000-8000-000000000000' }),
     ).rejects.toBeInstanceOf(ParkingSessionNotFoundError);
   });
 });

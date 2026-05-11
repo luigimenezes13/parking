@@ -1,39 +1,50 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { ParkingLot } from '@domain/parking/entities/parking-lot.ts';
-import { ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
+import { makeParkingLot } from '@domain/parking/__tests__/factories/parking-lot.factory.ts';
+import { makeActiveSession } from '@domain/parking/__tests__/factories/parking-session.factory.ts';
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositories/in-memory-parking-session-repository.ts';
 import { ListActiveSessionsByLotUseCase } from '@app/usecases/parking-session/list-active-sessions-by-lot-usecase.ts';
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 
-describe('ListActiveSessionsByLotUseCase', () => {
-  let lots: InMemoryParkingLotRepository;
-  let sessions: InMemoryParkingSessionRepository;
-  let usecase: ListActiveSessionsByLotUseCase;
+interface Setup {
+  lots: InMemoryParkingLotRepository;
+  sessions: InMemoryParkingSessionRepository;
+  usecase: ListActiveSessionsByLotUseCase;
+}
 
-  beforeEach(() => {
-    lots = new InMemoryParkingLotRepository();
-    sessions = new InMemoryParkingSessionRepository();
-    usecase = new ListActiveSessionsByLotUseCase(sessions, lots);
+async function makeSetup(): Promise<Setup> {
+  const lots = new InMemoryParkingLotRepository();
+  const sessions = new InMemoryParkingSessionRepository();
+  const usecase = new ListActiveSessionsByLotUseCase(sessions, lots);
+  return { lots, sessions, usecase };
+}
+
+describe('ListActiveSessionsByLotUseCase', () => {
+  let setup: Setup;
+
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('returns active sessions for the lot ordered by entryAt ascending', async () => {
-    const lot = ParkingLot.register({ name: 'Lot', address: 'a', totalCapacity: 10 });
-    await lots.save(lot);
+    const lot = makeParkingLot({ name: 'Lot', address: 'a', totalCapacity: 10 });
+    await setup.lots.save(lot);
 
-    const earlier = ParkingSession.enter({
+    const earlier = makeActiveSession({
       parkingLotId: lot.id(),
+      vehicle: null,
       entryAt: new Date('2026-04-30T09:00:00Z'),
     });
-    const later = ParkingSession.enter({
+    const later = makeActiveSession({
       parkingLotId: lot.id(),
+      vehicle: null,
       entryAt: new Date('2026-04-30T10:00:00Z'),
     });
-    await sessions.save(later);
-    await sessions.save(earlier);
+    await setup.sessions.save(later);
+    await setup.sessions.save(earlier);
 
-    const found = await usecase.execute({ parkingLotId: lot.id().value() });
+    const found = await setup.usecase.execute({ parkingLotId: lot.id().value() });
 
     expect(found).toHaveLength(2);
     expect(found[0]?.id().equals(earlier.id())).toBe(true);
@@ -42,7 +53,7 @@ describe('ListActiveSessionsByLotUseCase', () => {
 
   it('throws ParkingLotNotFoundError when lot is missing', async () => {
     await expect(
-      usecase.execute({ parkingLotId: '00000000-0000-4000-8000-000000000000' }),
+      setup.usecase.execute({ parkingLotId: '00000000-0000-4000-8000-000000000000' }),
     ).rejects.toBeInstanceOf(ParkingLotNotFoundError);
   });
 });

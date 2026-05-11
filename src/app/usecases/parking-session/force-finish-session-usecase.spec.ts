@@ -8,22 +8,31 @@ import { ForceFinishSessionUseCase } from '@app/usecases/parking-session/force-f
 import { ForceFinishSessionRequest } from '@app/dto/inputs/parking-session/force-finish-session-input.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
 
-describe('ForceFinishSessionUseCase', () => {
-  let sessions: InMemoryParkingSessionRepository;
-  let publisher: InMemoryDomainEventPublisher;
-  let usecase: ForceFinishSessionUseCase;
+interface Setup {
+  sessions: InMemoryParkingSessionRepository;
+  publisher: InMemoryDomainEventPublisher;
+  usecase: ForceFinishSessionUseCase;
+}
 
-  beforeEach(() => {
-    sessions = new InMemoryParkingSessionRepository();
-    publisher = new InMemoryDomainEventPublisher();
-    usecase = new ForceFinishSessionUseCase(sessions, publisher);
+async function makeSetup(): Promise<Setup> {
+  const sessions = new InMemoryParkingSessionRepository();
+  const publisher = new InMemoryDomainEventPublisher();
+  const usecase = new ForceFinishSessionUseCase(sessions, publisher);
+  return { sessions, publisher, usecase };
+}
+
+describe('ForceFinishSessionUseCase', () => {
+  let setup: Setup;
+
+  beforeEach(async () => {
+    setup = await makeSetup();
   });
 
   it('finishes the active session and publishes events', async () => {
     const session = makeActiveSession();
-    await sessions.save(session);
+    await setup.sessions.save(session);
 
-    const finished = await usecase.execute(
+    const finished = await setup.usecase.execute(
       new ForceFinishSessionRequest({
         sessionId: session.id().value(),
         exitAt: '2026-04-30T12:00:00Z',
@@ -32,12 +41,12 @@ describe('ForceFinishSessionUseCase', () => {
 
     expect(finished.isFinished()).toBe(true);
     expect(finished.exitAt()?.toISOString()).toBe('2026-04-30T12:00:00.000Z');
-    expect(publisher.published.length).toBeGreaterThan(0);
+    expect(setup.publisher.published.length).toBeGreaterThan(0);
   });
 
   it('throws ParkingSessionNotFoundError when missing', async () => {
     await expect(
-      usecase.execute(
+      setup.usecase.execute(
         new ForceFinishSessionRequest({ sessionId: '00000000-0000-4000-8000-000000000000' }),
       ),
     ).rejects.toBeInstanceOf(ParkingSessionNotFoundError);
@@ -46,10 +55,10 @@ describe('ForceFinishSessionUseCase', () => {
   it('throws SessionAlreadyFinishedError when the session has already been finished', async () => {
     const session = makeActiveSession();
     session.finish({ exitAt: new Date('2026-04-30T11:00:00Z') });
-    await sessions.save(session);
+    await setup.sessions.save(session);
 
     await expect(
-      usecase.execute(new ForceFinishSessionRequest({ sessionId: session.id().value() })),
+      setup.usecase.execute(new ForceFinishSessionRequest({ sessionId: session.id().value() })),
     ).rejects.toBeInstanceOf(SessionAlreadyFinishedError);
   });
 });

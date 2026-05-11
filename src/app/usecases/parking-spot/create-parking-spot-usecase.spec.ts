@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { ParkingLot } from '@domain/parking/entities/parking-lot.ts';
+import { type ParkingLot } from '@domain/parking/entities/parking-lot.ts';
+import { makeParkingLot } from '@domain/parking/__tests__/factories/parking-lot.factory.ts';
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { InMemoryParkingSpotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-spot-repository.ts';
 import { CreateParkingSpotUseCase } from '@app/usecases/parking-spot/create-parking-spot-usecase.ts';
@@ -19,7 +20,7 @@ interface Setup {
 async function makeSetup(): Promise<Setup> {
   const spots = new InMemoryParkingSpotRepository();
   const lots = new InMemoryParkingLotRepository();
-  const lot = ParkingLot.register({ name: 'Lot', address: 'addr', totalCapacity: 10 });
+  const lot = makeParkingLot({ name: 'Lot', address: 'addr', totalCapacity: 10 });
   await lots.save(lot);
   const usecase = new CreateParkingSpotUseCase(spots, lots);
   return { spots, lots, usecase, lot };
