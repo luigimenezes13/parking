@@ -11,6 +11,7 @@ import { type ParkingSessionRepository } from '@domain/parking/repositories/park
 import { type VehicleRepository } from '@domain/parking/repositories/vehicle-repository.ts';
 import { type DomainEventPublisher } from '@domain/shared/events/domain-event-publisher.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
+import { createManualForcePlatePerformed } from '@domain/parking/events/manual-force-plate-performed.ts';
 
 @injectable()
 export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionRequest, ParkingSession> {
@@ -43,7 +44,16 @@ export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionReques
 
     session.assignVehicle({ vehicle });
     await this.sessions.save(session);
-    await this.publisher.publish(session.pullDomainEvents());
+
+    const performedAt = new Date();
+    const manualEvent = createManualForcePlatePerformed({
+      sessionId: session.id().value(),
+      parkingLotId: session.parkingLotId().value(),
+      vehicleId: vehicle.id().value(),
+      licensePlate: licensePlate.value(),
+      performedAt,
+    });
+    await this.publisher.publish([...session.pullDomainEvents(), manualEvent]);
 
     return session;
   }

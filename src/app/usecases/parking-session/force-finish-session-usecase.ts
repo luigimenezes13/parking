@@ -8,6 +8,7 @@ import { type ParkingSession } from '@domain/parking/aggregates/parking-session/
 import { type ParkingSessionRepository } from '@domain/parking/repositories/parking-session-repository.ts';
 import { type DomainEventPublisher } from '@domain/shared/events/domain-event-publisher.ts';
 import { ParkingSessionNotFoundError } from '@app/exceptions/parking-session/parking-session-not-found-error.ts';
+import { createManualForceFinishPerformed } from '@domain/parking/events/manual-force-finish-performed.ts';
 
 @injectable()
 export class ForceFinishSessionUseCase implements UseCase<
@@ -34,9 +35,17 @@ export class ForceFinishSessionUseCase implements UseCase<
       throw new ParkingSessionNotFoundError(sessionId);
     }
 
-    session.finish({ exitAt: exitAt ? new Date(exitAt) : new Date() });
+    const performedAt = new Date();
+    session.finish({ exitAt: exitAt ? new Date(exitAt) : performedAt });
     await this.sessions.save(session);
-    await this.publisher.publish(session.pullDomainEvents());
+
+    const manualEvent = createManualForceFinishPerformed({
+      sessionId: session.id().value(),
+      parkingLotId: session.parkingLotId().value(),
+      vehicleId: session.vehicle()?.id().value() ?? null,
+      performedAt,
+    });
+    await this.publisher.publish([...session.pullDomainEvents(), manualEvent]);
 
     return session;
   }
