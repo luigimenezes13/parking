@@ -7,6 +7,8 @@ import { GetParkingSpotByIdUseCase } from '@app/usecases/parking-spot/get-parkin
 import { ListParkingSpotsByLotUseCase } from '@app/usecases/parking-spot/list-parking-spots-by-lot-usecase.ts';
 import { UpdateParkingSpotMetadataUseCase } from '@app/usecases/parking-spot/update-parking-spot-metadata-usecase.ts';
 import { DeactivateParkingSpotUseCase } from '@app/usecases/parking-spot/deactivate-parking-spot-usecase.ts';
+import { EnterSpotMaintenanceUseCase } from '@app/usecases/parking-spot/enter-spot-maintenance-usecase.ts';
+import { LeaveSpotMaintenanceUseCase } from '@app/usecases/parking-spot/leave-spot-maintenance-usecase.ts';
 import {
   CreateParkingSpotRequest,
   CreateParkingSpotRequestSchema,
@@ -53,6 +55,8 @@ export class ParkingSpotController extends FastifyController {
   private readonly listParkingSpotsByLot: ListParkingSpotsByLotUseCase;
   private readonly updateParkingSpotMetadata: UpdateParkingSpotMetadataUseCase;
   private readonly deactivateParkingSpot: DeactivateParkingSpotUseCase;
+  private readonly enterSpotMaintenance: EnterSpotMaintenanceUseCase;
+  private readonly leaveSpotMaintenance: LeaveSpotMaintenanceUseCase;
 
   constructor(
     @inject(CreateParkingSpotUseCase) createParkingSpot: CreateParkingSpotUseCase,
@@ -61,6 +65,8 @@ export class ParkingSpotController extends FastifyController {
     @inject(UpdateParkingSpotMetadataUseCase)
     updateParkingSpotMetadata: UpdateParkingSpotMetadataUseCase,
     @inject(DeactivateParkingSpotUseCase) deactivateParkingSpot: DeactivateParkingSpotUseCase,
+    @inject(EnterSpotMaintenanceUseCase) enterSpotMaintenance: EnterSpotMaintenanceUseCase,
+    @inject(LeaveSpotMaintenanceUseCase) leaveSpotMaintenance: LeaveSpotMaintenanceUseCase,
   ) {
     super();
     this.createParkingSpot = createParkingSpot;
@@ -68,6 +74,8 @@ export class ParkingSpotController extends FastifyController {
     this.listParkingSpotsByLot = listParkingSpotsByLot;
     this.updateParkingSpotMetadata = updateParkingSpotMetadata;
     this.deactivateParkingSpot = deactivateParkingSpot;
+    this.enterSpotMaintenance = enterSpotMaintenance;
+    this.leaveSpotMaintenance = leaveSpotMaintenance;
   }
 
   @ApiTag('ParkingSpots')
@@ -132,6 +140,28 @@ export class ParkingSpotController extends FastifyController {
   async deactivateParkingSpotHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const { id } = request.params as { id: string };
     const spot = await this.deactivateParkingSpot.execute({ parkingSpotId: id });
+    return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
+  }
+
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Colocar vaga em manutenção')
+  @ApiParamsSchema(spotIdParamSchema)
+  @ApiResponseSchema({ 200: parkingSpotResponseSchema })
+  @Route('post', '/parking-spots/:id/maintenance')
+  async enterMaintenanceHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const spot = await this.enterSpotMaintenance.execute({ parkingSpotId: id });
+    return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
+  }
+
+  @ApiTag('ParkingSpots')
+  @ApiOperation('Retirar vaga de manutenção')
+  @ApiParamsSchema(spotIdParamSchema)
+  @ApiResponseSchema({ 200: parkingSpotResponseSchema })
+  @Route('post', '/parking-spots/:id/release-maintenance')
+  async leaveMaintenanceHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { id } = request.params as { id: string };
+    const spot = await this.leaveSpotMaintenance.execute({ parkingSpotId: id });
     return reply.status(200).send(parkingSpotPresenter.toResponse(spot));
   }
 }
