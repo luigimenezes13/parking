@@ -19,11 +19,15 @@ export const spotReleasedMapper: DomainEventMapper<
       throw new SessionWithoutSpotError(session.id().value());
     }
 
+    const vehicle = session.vehicle();
+
     return Object.freeze({
       eventName: 'parking.session.spot-released',
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
+        parkingLotId: session.parkingLotId().value(),
+        vehicleId: vehicle?.id().value() ?? null,
         spotId: spot.id().value(),
         spotCode: spot.code().value(),
         releasedAt: new Date(context.releasedAt.getTime()),

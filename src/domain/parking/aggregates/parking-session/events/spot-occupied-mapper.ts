@@ -25,6 +25,7 @@ export const spotOccupiedMapper: DomainEventMapper<
       occurredOn: new Date(),
       payload: Object.freeze({
         sessionId: session.id().value(),
+        parkingLotId: session.parkingLotId().value(),
         vehicleId: vehicle?.id().value() ?? null,
         licensePlate: vehicle?.licensePlate().value() ?? null,
         spotId: spot.id().value(),
