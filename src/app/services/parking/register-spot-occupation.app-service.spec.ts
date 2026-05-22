@@ -79,10 +79,11 @@ describe('RegisterSpotOccupationAppService', () => {
 
     const vehicle = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('XYZ9K88'));
     expect(vehicle).not.toBeNull();
-    expect(result.sessionId).toBeTruthy();
+    expect(result).not.toBeNull();
+    expect(result?.sessionId).toBeTruthy();
 
     const stored = await setup.sessions.findActiveByPlate(LicensePlateVO.from('XYZ9K88'));
-    expect(stored?.id().value()).toBe(result.sessionId);
+    expect(stored?.id().value()).toBe(result?.sessionId);
     expect(stored?.spot()?.code().value()).toBe('A');
   });
 

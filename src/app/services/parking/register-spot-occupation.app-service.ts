@@ -25,12 +25,13 @@ export interface RegisterSpotOccupationInput {
 export interface RegisterSpotOccupationOutput {
   sessionId: string;
   spotId: string;
+  ignored?: boolean;
 }
 
 @injectable()
 export class RegisterSpotOccupationAppService implements AppService<
   RegisterSpotOccupationInput,
-  RegisterSpotOccupationOutput
+  RegisterSpotOccupationOutput | null
 > {
   private readonly vehicles: VehicleRepository;
   private readonly spots: ParkingSpotRepository;
@@ -52,7 +53,7 @@ export class RegisterSpotOccupationAppService implements AppService<
     this.publisher = publisher;
   }
 
-  async execute(input: RegisterSpotOccupationInput): Promise<RegisterSpotOccupationOutput> {
+  async execute(input: RegisterSpotOccupationInput): Promise<RegisterSpotOccupationOutput | null> {
     if (input.plate === null) {
       throw new InvalidRecognitionPlateError('spot.occupied');
     }
@@ -64,6 +65,19 @@ export class RegisterSpotOccupationAppService implements AppService<
     const spot = await this.spots.findByCode(parkingLotId, spotCode);
     if (!spot) {
       throw new ParkingSpotNotFoundError(parkingLotId.value(), input.spotCode);
+    }
+
+    if (spot.isUnderMaintenance()) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          message: 'recognition.spot-occupied-ignored',
+          reason: 'spot-under-maintenance',
+          spotCode: input.spotCode,
+          spotId: spot.id().value(),
+        }),
+      );
+      return null;
     }
 
     const vehicle = await this.resolveOrCreateVehicle(licensePlate, parkingLotId);
