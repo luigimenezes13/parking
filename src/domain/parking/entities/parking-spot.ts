@@ -48,6 +48,14 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
     this.properties.status = this.properties.status.release(this.properties.code.value());
   }
 
+  enterMaintenance(): void {
+    this.properties.status = this.properties.status.enterMaintenance(this.properties.code.value());
+  }
+
+  leaveMaintenance(): void {
+    this.properties.status = this.properties.status.leaveMaintenance(this.properties.code.value());
+  }
+
   updateMetadata(metadata: ParkingSpotMetadata): void {
     this.properties.floor = metadata.floor;
     this.properties.row = metadata.row;
@@ -122,6 +130,10 @@ export class ParkingSpot extends Entity<ParkingSpotProperties> {
 
   isReserved(): boolean {
     return this.properties.status.isReserved();
+  }
+
+  isUnderMaintenance(): boolean {
+    return this.properties.status.isUnderMaintenance();
   }
 
   deactivatedAt(): Date | null {

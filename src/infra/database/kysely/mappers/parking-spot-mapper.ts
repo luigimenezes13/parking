@@ -33,7 +33,7 @@ export type InsertableParkingSpotRow = {
   column: number;
   is_covered: boolean;
   spot_type: SpotTypeValue;
-  status: 'FREE' | 'OCCUPIED' | 'RESERVED';
+  status: 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
   created_at: Date;
   updated_at: Date;
   deactivated_at: Date | null;
@@ -83,7 +83,7 @@ export class ParkingSpotMapper {
     column: number;
     is_covered: boolean;
     spot_type: SpotTypeValue;
-    status: 'FREE' | 'OCCUPIED' | 'RESERVED';
+    status: 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
     deactivated_at: Date | null;
     updated_at: Date;
   } {

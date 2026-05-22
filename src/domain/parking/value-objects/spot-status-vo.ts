@@ -1,8 +1,9 @@
 import { ValueObject } from '@domain/shared/value-object.ts';
 import { SpotNotFreeError } from '@domain/parking/errors/spot-not-free.ts';
 import { SpotNotOccupiedError } from '@domain/parking/errors/spot-not-occupied.ts';
+import { SpotNotUnderMaintenanceError } from '@domain/parking/errors/spot-not-under-maintenance.ts';
 
-type SpotStatusValue = 'FREE' | 'OCCUPIED' | 'RESERVED';
+type SpotStatusValue = 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
 
 export class SpotStatusVO extends ValueObject<SpotStatusValue> {
   private constructor(value: SpotStatusValue) {
@@ -21,6 +22,10 @@ export class SpotStatusVO extends ValueObject<SpotStatusValue> {
     return new SpotStatusVO('RESERVED');
   }
 
+  static maintenance(): SpotStatusVO {
+    return new SpotStatusVO('MAINTENANCE');
+  }
+
   static fromExisting(value: SpotStatusValue): SpotStatusVO {
     return new SpotStatusVO(value);
   }
@@ -35,6 +40,10 @@ export class SpotStatusVO extends ValueObject<SpotStatusValue> {
 
   isReserved(): boolean {
     return this.properties === 'RESERVED';
+  }
+
+  isUnderMaintenance(): boolean {
+    return this.properties === 'MAINTENANCE';
   }
 
   occupy(spotCodeForError: string): SpotStatusVO {
@@ -54,8 +63,24 @@ export class SpotStatusVO extends ValueObject<SpotStatusValue> {
   }
 
   release(spotCodeForError: string): SpotStatusVO {
-    if (this.isFree()) {
+    if (this.isFree() || this.isUnderMaintenance()) {
       throw new SpotNotOccupiedError(spotCodeForError);
+    }
+
+    return SpotStatusVO.free();
+  }
+
+  enterMaintenance(spotCodeForError: string): SpotStatusVO {
+    if (!this.isFree()) {
+      throw new SpotNotFreeError(spotCodeForError);
+    }
+
+    return SpotStatusVO.maintenance();
+  }
+
+  leaveMaintenance(spotCodeForError: string): SpotStatusVO {
+    if (!this.isUnderMaintenance()) {
+      throw new SpotNotUnderMaintenanceError(spotCodeForError);
     }
 
     return SpotStatusVO.free();

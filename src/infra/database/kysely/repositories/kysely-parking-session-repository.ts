@@ -216,7 +216,7 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
                 | 'MOTORCYCLE'
                 | 'ACCESSIBLE'
                 | 'ELECTRIC',
-              status: row.spot_status as 'FREE' | 'OCCUPIED' | 'RESERVED',
+              status: row.spot_status as 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE',
               deactivated_at: row.spot_deactivated_at,
             }
           : null,
@@ -249,6 +249,6 @@ interface HydratedRow {
   spot_column: number | null;
   spot_is_covered: boolean | null;
   spot_spot_type: 'REGULAR' | 'COMPACT' | 'LARGE' | 'MOTORCYCLE' | 'ACCESSIBLE' | 'ELECTRIC' | null;
-  spot_status: 'FREE' | 'OCCUPIED' | 'RESERVED' | null;
+  spot_status: 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE' | null;
   spot_deactivated_at: Date | null;
 }
