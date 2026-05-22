@@ -6,6 +6,8 @@ import { VehicleMapper } from '@infra/database/kysely/mappers/vehicle-mapper.ts'
 import { ParkingSessionMapper } from '@infra/database/kysely/mappers/parking-session-mapper.ts';
 import { DriverMapper } from '@infra/database/kysely/mappers/driver-mapper.ts';
 import { ParkingLotMapper } from '@infra/database/kysely/mappers/parking-lot-mapper.ts';
+import { CameraMapper } from '@infra/database/kysely/mappers/camera-mapper.ts';
+import { ActivityEventMapper } from '@infra/database/kysely/mappers/activity-event-mapper.ts';
 
 export function configureMappers(container: Container): void {
   container
@@ -19,4 +21,9 @@ export function configureMappers(container: Container): void {
     .inSingletonScope();
   container.bind<DriverMapper>(TYPES.DriverMapper).to(DriverMapper).inSingletonScope();
   container.bind<ParkingLotMapper>(TYPES.ParkingLotMapper).to(ParkingLotMapper).inSingletonScope();
+  container.bind<CameraMapper>(TYPES.CameraMapper).to(CameraMapper).inSingletonScope();
+  container
+    .bind<ActivityEventMapper>(TYPES.ActivityEventMapper)
+    .to(ActivityEventMapper)
+    .inSingletonScope();
 }

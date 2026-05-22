@@ -7,6 +7,9 @@ import { ParkingLotController } from '@infra/controllers/parking-lot-controller.
 import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
 import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
 import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
+import { CameraController } from '@infra/controllers/camera-controller.ts';
+import { ActivityController } from '@infra/controllers/activity-controller.ts';
+import { ActivityStreamController } from '@infra/controllers/activity-stream-controller.ts';
 
 export function configureControllers(container: Container): void {
   container.bind<HealthController>(HealthController).toSelf().inTransientScope();
@@ -19,4 +22,7 @@ export function configureControllers(container: Container): void {
   container.bind<VehicleController>(VehicleController).toSelf().inTransientScope();
   container.bind<ParkingSpotController>(ParkingSpotController).toSelf().inTransientScope();
   container.bind<ParkingSessionController>(ParkingSessionController).toSelf().inTransientScope();
+  container.bind<CameraController>(CameraController).toSelf().inTransientScope();
+  container.bind<ActivityController>(ActivityController).toSelf().inTransientScope();
+  container.bind<ActivityStreamController>(ActivityStreamController).toSelf().inTransientScope();
 }

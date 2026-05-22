@@ -5,6 +5,7 @@ import { RegisterVehicleEntryAppService } from '@app/services/parking/register-v
 import { RegisterSpotOccupationAppService } from '@app/services/parking/register-spot-occupation.app-service.ts';
 import { RegisterSpotReleaseAppService } from '@app/services/parking/register-spot-release.app-service.ts';
 import { FinishParkingSessionAppService } from '@app/services/parking/finish-parking-session.app-service.ts';
+import { ActivityRecorderAppService } from '@app/services/activity/activity-recorder.app-service.ts';
 import { VehicleEnteredHandler } from '@app/handlers/recognition/vehicle-entered-handler.ts';
 import { SpotOccupiedHandler } from '@app/handlers/recognition/spot-occupied-handler.ts';
 import { SpotReleasedHandler } from '@app/handlers/recognition/spot-released-handler.ts';
@@ -29,6 +30,11 @@ export function configureAppServices(container: Container): void {
   container
     .bind<FinishParkingSessionAppService>(TYPES.FinishParkingSessionAppService)
     .to(FinishParkingSessionAppService)
+    .inSingletonScope();
+
+  container
+    .bind<ActivityRecorderAppService>(TYPES.ActivityRecorderAppService)
+    .to(ActivityRecorderAppService)
     .inSingletonScope();
 
   container

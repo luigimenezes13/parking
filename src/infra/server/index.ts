@@ -15,6 +15,9 @@ import { ParkingLotController } from '@infra/controllers/parking-lot-controller.
 import { VehicleController } from '@infra/controllers/vehicle-controller.ts';
 import { ParkingSpotController } from '@infra/controllers/parking-spot-controller.ts';
 import { ParkingSessionController } from '@infra/controllers/parking-session-controller.ts';
+import { CameraController } from '@infra/controllers/camera-controller.ts';
+import { ActivityController } from '@infra/controllers/activity-controller.ts';
+import { ActivityStreamController } from '@infra/controllers/activity-stream-controller.ts';
 import { RegisterController } from '@infra/http/register-controller.ts';
 import { registerErrorHandler } from '@infra/server/error-handler.ts';
 import { loadEnvironment } from '@infra/env/environment.ts';
@@ -39,6 +42,9 @@ import { type VehicleEnteredHandler } from '@app/handlers/recognition/vehicle-en
 import { type SpotOccupiedHandler } from '@app/handlers/recognition/spot-occupied-handler.ts';
 import { type SpotReleasedHandler } from '@app/handlers/recognition/spot-released-handler.ts';
 import { type VehicleExitedHandler } from '@app/handlers/recognition/vehicle-exited-handler.ts';
+import { type ActivityRecorderAppService } from '@app/services/activity/activity-recorder.app-service.ts';
+import { type DomainEventBus } from '@infra/events/in-process-domain-event-bus.ts';
+import { OfflineCameraSweeper } from '@infra/jobs/offline-camera-sweeper.ts';
 import { database } from '@infra/database/Connection.ts';
 
 const environment = loadEnvironment();
@@ -92,6 +98,17 @@ const consumers: RecognitionConsumerBinding[] = [
 ];
 await startRecognitionConsumers(rabbitChannel, consumers, environment.RABBITMQ_PREFETCH);
 
+const activityRecorder = container.get<ActivityRecorderAppService>(
+  TYPES.ActivityRecorderAppService,
+);
+const domainEventBus = container.get<DomainEventBus>(TYPES.DomainEventBus);
+const unsubscribeActivityRecorder = domainEventBus.subscribe((event) => {
+  void activityRecorder.handle(event);
+});
+
+const offlineCameraSweeper = container.get(OfflineCameraSweeper);
+offlineCameraSweeper.start();
+
 // TODO: add this to the DI
 RegisterController(server, container.get(HealthController));
 RegisterController(server, container.get(RecognitionEventsController));
@@ -100,6 +117,9 @@ RegisterController(server, container.get(ParkingLotController));
 RegisterController(server, container.get(VehicleController));
 RegisterController(server, container.get(ParkingSpotController));
 RegisterController(server, container.get(ParkingSessionController));
+RegisterController(server, container.get(CameraController));
+RegisterController(server, container.get(ActivityController));
+RegisterController(server, container.get(ActivityStreamController));
 
 registerErrorHandler(server);
 
@@ -108,6 +128,8 @@ await server.listen({ port: environment.PORT, host: '0.0.0.0' });
 async function shutdown(signal: string): Promise<void> {
   server.log.info({ signal }, 'shutdown.start');
   try {
+    offlineCameraSweeper.stop();
+    unsubscribeActivityRecorder();
     await server.close();
     await rabbitChannel.close().catch(() => undefined);
     await closeRabbitMQConnection();

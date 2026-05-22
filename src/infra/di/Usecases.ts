@@ -23,11 +23,21 @@ import { GetParkingSpotByIdUseCase } from '@app/usecases/parking-spot/get-parkin
 import { ListParkingSpotsByLotUseCase } from '@app/usecases/parking-spot/list-parking-spots-by-lot-usecase.ts';
 import { UpdateParkingSpotMetadataUseCase } from '@app/usecases/parking-spot/update-parking-spot-metadata-usecase.ts';
 import { DeactivateParkingSpotUseCase } from '@app/usecases/parking-spot/deactivate-parking-spot-usecase.ts';
+import { EnterSpotMaintenanceUseCase } from '@app/usecases/parking-spot/enter-spot-maintenance-usecase.ts';
+import { LeaveSpotMaintenanceUseCase } from '@app/usecases/parking-spot/leave-spot-maintenance-usecase.ts';
 import { GetParkingSessionByIdUseCase } from '@app/usecases/parking-session/get-parking-session-by-id-usecase.ts';
 import { ListActiveSessionsByLotUseCase } from '@app/usecases/parking-session/list-active-sessions-by-lot-usecase.ts';
 import { ListSessionsByVehicleUseCase } from '@app/usecases/parking-session/list-sessions-by-vehicle-usecase.ts';
 import { ForceFinishSessionUseCase } from '@app/usecases/parking-session/force-finish-session-usecase.ts';
 import { ForcePlateSessionUseCase } from '@app/usecases/parking-session/force-plate-session-usecase.ts';
+import { RegisterCameraUseCase } from '@app/usecases/camera/register-camera-usecase.ts';
+import { GetCameraByIdUseCase } from '@app/usecases/camera/get-camera-by-id-usecase.ts';
+import { ListCamerasByLotUseCase } from '@app/usecases/camera/list-cameras-by-lot-usecase.ts';
+import { UpdateCameraUseCase } from '@app/usecases/camera/update-camera-usecase.ts';
+import { RecordCameraHeartbeatUseCase } from '@app/usecases/camera/record-camera-heartbeat-usecase.ts';
+import { DeactivateCameraUseCase } from '@app/usecases/camera/deactivate-camera-usecase.ts';
+import { ListActivityEventsUseCase } from '@app/usecases/activity/list-activity-events-usecase.ts';
+import { GetActivityDaySummaryUseCase } from '@app/usecases/activity/get-activity-day-summary-usecase.ts';
 
 export function configureUseCases(container: Container): void {
   // Driver
@@ -84,6 +94,14 @@ export function configureUseCases(container: Container): void {
     .bind<DeactivateParkingSpotUseCase>(DeactivateParkingSpotUseCase)
     .toSelf()
     .inTransientScope();
+  container
+    .bind<EnterSpotMaintenanceUseCase>(EnterSpotMaintenanceUseCase)
+    .toSelf()
+    .inTransientScope();
+  container
+    .bind<LeaveSpotMaintenanceUseCase>(LeaveSpotMaintenanceUseCase)
+    .toSelf()
+    .inTransientScope();
 
   // ParkingSession
   container
@@ -100,4 +118,22 @@ export function configureUseCases(container: Container): void {
     .inTransientScope();
   container.bind<ForceFinishSessionUseCase>(ForceFinishSessionUseCase).toSelf().inTransientScope();
   container.bind<ForcePlateSessionUseCase>(ForcePlateSessionUseCase).toSelf().inTransientScope();
+
+  // Camera
+  container.bind<RegisterCameraUseCase>(RegisterCameraUseCase).toSelf().inTransientScope();
+  container.bind<GetCameraByIdUseCase>(GetCameraByIdUseCase).toSelf().inTransientScope();
+  container.bind<ListCamerasByLotUseCase>(ListCamerasByLotUseCase).toSelf().inTransientScope();
+  container.bind<UpdateCameraUseCase>(UpdateCameraUseCase).toSelf().inTransientScope();
+  container
+    .bind<RecordCameraHeartbeatUseCase>(RecordCameraHeartbeatUseCase)
+    .toSelf()
+    .inTransientScope();
+  container.bind<DeactivateCameraUseCase>(DeactivateCameraUseCase).toSelf().inTransientScope();
+
+  // Activity
+  container.bind<ListActivityEventsUseCase>(ListActivityEventsUseCase).toSelf().inTransientScope();
+  container
+    .bind<GetActivityDaySummaryUseCase>(GetActivityDaySummaryUseCase)
+    .toSelf()
+    .inTransientScope();
 }
