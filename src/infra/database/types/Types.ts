@@ -4,8 +4,31 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-import type { SpotStatus, SessionStatus, SpotType } from "./Enums.ts";
+import type { SpotStatus, CameraStatus, ActivityType, SessionStatus, SpotType } from "./Enums.ts";
 
+export type ActivityEvent = {
+    id: string;
+    parking_lot_id: string;
+    session_id: string | null;
+    vehicle_id: string | null;
+    spot_id: string | null;
+    camera_id: string | null;
+    type: ActivityType;
+    payload: unknown;
+    occurred_at: Timestamp;
+    created_at: Generated<Timestamp>;
+};
+export type Camera = {
+    id: string;
+    parking_lot_id: string;
+    name: string;
+    stream_url: string;
+    status: Generated<CameraStatus>;
+    last_seen_at: Timestamp | null;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+    deactivated_at: Timestamp | null;
+};
 export type Driver = {
     id: string;
     cnh: string;
@@ -64,6 +87,8 @@ export type Vehicle = {
     deactivated_at: Timestamp | null;
 };
 export type DB = {
+    activity_events: ActivityEvent;
+    cameras: Camera;
     drivers: Driver;
     parking_lots: ParkingLot;
     parking_sessions: ParkingSession;

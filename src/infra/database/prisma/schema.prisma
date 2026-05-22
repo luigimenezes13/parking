@@ -17,6 +17,28 @@ enum SpotStatus {
   FREE
   OCCUPIED
   RESERVED
+  MAINTENANCE
+}
+
+enum CameraStatus {
+  ONLINE
+  OFFLINE
+  UNREGISTERED
+}
+
+enum ActivityType {
+  VEHICLE_ENTERED
+  SPOT_OCCUPIED
+  SPOT_RELEASED
+  VEHICLE_EXITED
+  SESSION_STARTED
+  SESSION_FINISHED
+  MANUAL_FORCE_FINISH
+  MANUAL_FORCE_PLATE
+  SPOT_MAINTENANCE_ON
+  SPOT_MAINTENANCE_OFF
+  CAMERA_ONLINE
+  CAMERA_OFFLINE
 }
 
 enum SessionStatus {
@@ -60,8 +82,47 @@ model ParkingLot {
   spots    ParkingSpot[]
   vehicles Vehicle[]
   sessions ParkingSession[]
+  cameras  Camera[]
+  activity ActivityEvent[]
 
   @@map("parking_lots")
+}
+
+model Camera {
+  id            String       @id @db.Uuid
+  parkingLotId  String       @db.Uuid @map("parking_lot_id")
+  name          String
+  streamUrl     String       @map("stream_url")
+  status        CameraStatus @default(UNREGISTERED)
+  lastSeenAt    DateTime?    @db.Timestamptz(3) @map("last_seen_at")
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deactivatedAt DateTime?    @db.Timestamptz(3) @map("deactivated_at")
+
+  parkingLot ParkingLot @relation(fields: [parkingLotId], references: [id], onDelete: Restrict)
+
+  @@index([parkingLotId])
+  @@map("cameras")
+}
+
+model ActivityEvent {
+  id           String       @id @db.Uuid
+  parkingLotId String       @db.Uuid @map("parking_lot_id")
+  sessionId    String?      @db.Uuid @map("session_id")
+  vehicleId    String?      @db.Uuid @map("vehicle_id")
+  spotId       String?      @db.Uuid @map("spot_id")
+  cameraId     String?      @db.Uuid @map("camera_id")
+  type         ActivityType
+  payload      Json         @db.JsonB
+  occurredAt   DateTime     @db.Timestamptz(3) @map("occurred_at")
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3) @map("created_at")
+
+  parkingLot ParkingLot @relation(fields: [parkingLotId], references: [id], onDelete: Restrict)
+
+  @@index([parkingLotId, occurredAt(sort: Desc)])
+  @@index([sessionId])
+  @@index([vehicleId])
+  @@map("activity_events")
 }
 
 model ParkingSpot {
