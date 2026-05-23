@@ -48,7 +48,15 @@ import { OfflineCameraSweeper } from '@infra/jobs/offline-camera-sweeper.ts';
 import { database } from '@infra/database/Connection.ts';
 
 const environment = loadEnvironment();
-const server = Fastify({ logger: true });
+const server = Fastify({
+  logger: true,
+  // discriminatedUnion gera \`oneOf\` com branches que possuem
+  // \`additionalProperties:false\`. Com o \`removeAdditional\` ligado (default do
+  // Ajv do Fastify) propriedades especificas de uma branch sao removidas
+  // enquanto o Ajv testa as anteriores no oneOf, e a branch correta acaba
+  // falhando por "required property faltando".
+  ajv: { customOptions: { removeAdditional: false } },
+});
 
 await server.register(cors);
 await server.register(swagger, {
