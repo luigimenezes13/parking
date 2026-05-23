@@ -93,9 +93,9 @@ export class KyselyActivityEventRepository implements ActivityEventRepository {
 
   async summaryByDay(parkingLotId: UniqueIdentifier, date: Date): Promise<ActivityDaySummary> {
     const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
+    start.setUTCHours(0, 0, 0, 0);
     const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+    end.setUTCDate(end.getUTCDate() + 1);
 
     const rows = await this.database
       .selectFrom('activity_events')
