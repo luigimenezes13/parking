@@ -47,8 +47,7 @@ arquitetura de software desacoplada, testável e evolutiva.
 - Cancela/cobrança/integração com meios de pagamento.
 - Multi-tenant / múltiplos estacionamentos em produção.
 - Treinamento de modelo próprio de OCR (usa YOLOv8 + PaddleOCR pré-treinados).
-- Alta disponibilidade / deploy gerenciado em nuvem (há um plano em
-  [`docs/cloud-provisioning.md`](docs/cloud-provisioning.md), não implantado).
+- Alta disponibilidade / deploy gerenciado em nuvem (planejado, não implantado).
 
 ---
 
@@ -88,19 +87,16 @@ flowchart LR
 
 > Legenda: **verde** = implementado e validado. Linha tracejada = stream de vídeo (RTSP/HLS).
 
-Detalhes de topologia, portas, IPs e runbook completo:
-[`docs/arquitetura-local-runbook.md`](docs/arquitetura-local-runbook.md).
-
 ---
 
 ## Componentes
 
-| Serviço | Pasta | Stack | Responsabilidade |
-|---|---|---|---|
-| **Vehicle Service** | [`vehicle-service/`](vehicle-service/README.md) | Python, FastAPI, picamera2 | Captura imagem no Pi, consulta o reconhecimento, publica eventos e o stream |
-| **Recognition Service** | [`recognition-service/`](recognition-service/README.md) | Python, FastAPI, YOLOv8, PaddleOCR | Detecta veículo e lê a placa (OCR); roda em Docker |
-| **Parking (backend)** | [`parking/`](parking/README.md) | Node 20, Fastify, Kysely/Prisma, InversifyJS, PostgreSQL, RabbitMQ | Domínio do estacionamento, API REST, eventos e persistência |
-| **Parking Manager (frontend)** | [`parking-manager-frontend/`](parking-manager-frontend/README.md) | React 19, Vite, TypeScript, React Query, Tailwind | Dashboard web que consome a API |
+| Serviço | Stack | Responsabilidade |
+|---|---|---|
+| **Vehicle Service** | Python, FastAPI, picamera2 | Captura imagem no Pi, consulta o reconhecimento, publica eventos e o stream |
+| **Recognition Service** | Python, FastAPI, YOLOv8, PaddleOCR | Detecta veículo e lê a placa (OCR); roda em Docker |
+| **Parking (backend)** | Node 20, Fastify, Kysely/Prisma, InversifyJS, PostgreSQL, RabbitMQ | Domínio do estacionamento, API REST, eventos e persistência |
+| **Parking Manager (frontend)** | React 19, Vite, TypeScript, React Query, Tailwind | Dashboard web que consome a API |
 
 Cada subprojeto tem seu próprio README com instruções específicas.
 
@@ -128,11 +124,8 @@ frontend consome a API:
 
 ## Como executar
 
-Passo a passo completo (subir banco/fila, recognition em Docker, backend,
-frontend e o serviço no Pi) está em
-**[`docs/arquitetura-local-runbook.md`](docs/arquitetura-local-runbook.md)**.
-
-Resumo:
+Passo a passo resumido (subir banco/fila, recognition em Docker, backend e
+frontend):
 
 ```bash
 # 1. Banco + fila (em parking/)
@@ -150,11 +143,11 @@ cd ../parking && pnpm install && pnpm generate && pnpm migrate && pnpm dev   # :
 # 4. Frontend
 cd ../parking-manager-frontend && cp .env.example .env && pnpm install && pnpm dev  # :5173
 
-# 5. Vehicle service: roda no Raspberry Pi (ver vehicle-service/README e o runbook)
+# 5. Vehicle service: roda no Raspberry Pi (edge)
 ```
 
 > O `recognition-service` **deve rodar em Docker (linux/amd64)** — o
-> `paddlepaddle` trava em inferência nativa no macOS Apple Silicon. Ver o runbook.
+> `paddlepaddle` trava em inferência nativa no macOS Apple Silicon.
 
 ---
 
