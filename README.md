@@ -1,192 +1,172 @@
-# Parking API
+# TCC — Monitoramento de Estacionamento com LPR
 
-API de gerenciamento de estacionamento construida com Domain-Driven Design e Clean Architecture.
+Sistema automatizado de monitoramento de vagas de estacionamento baseado em
+**visão computacional (LPR — License Plate Recognition / Reconhecimento
+Automático de Placas)**, desenvolvido como Trabalho de Conclusão de Curso.
 
-## Stack
+Uma câmera observa o estacionamento; o sistema detecta a presença de veículos,
+reconhece a placa, controla a ocupação das vagas em tempo real e expõe tudo num
+dashboard web e numa API.
 
-| Camada | Tecnologia |
-|---|---|
-| Linguagem | TypeScript |
-| Runtime | Node.js 20+ |
-| HTTP | Fastify 5 |
-| DI | Inversify |
-| Banco de dados | PostgreSQL |
-| Schema & Migrations | Prisma |
-| Query Builder | Kysely |
-| Validacao | Zod |
-| Build | tsup (ESM) |
-| Testes | Vitest |
-| Linter | ESLint + plugin DDD customizado |
-| Package Manager | pnpm |
+---
+
+## Objetivo
+
+Demonstrar, de ponta a ponta, um sistema de baixo custo capaz de:
+
+1. **Capturar** imagens do estacionamento continuamente a partir de um
+   Raspberry Pi com câmera.
+2. **Detectar** a presença de veículos (YOLOv8) e **reconhecer a placa** (OCR)
+   sem hardware dedicado de LPR.
+3. **Gerir o estado do estacionamento** — entrada/saída de veículos, ocupação e
+   liberação de vagas, sessões de permanência — aplicando regras de negócio com
+   **Domain-Driven Design** e **Clean Architecture**.
+4. **Visualizar** a operação em tempo real (ocupação, stream ao vivo da câmera,
+   histórico de atividade) num **dashboard web**.
+
+O objetivo acadêmico é mostrar a viabilidade técnica do LPR com hardware
+acessível (Raspberry Pi + câmera + um computador comum rodando os modelos) e uma
+arquitetura de software desacoplada, testável e evolutiva.
+
+---
+
+## Escopo
+
+**Incluído:**
+
+- Captura de imagem e orquestração do ciclo no edge (Raspberry Pi).
+- Detecção de veículo + OCR de placa como serviço HTTP.
+- Backend de domínio (estacionamento, vagas, sessões, câmeras, atividade) com
+  API REST + eventos assíncronos (RabbitMQ) e persistência (PostgreSQL).
+- Dashboard web (mobile-first) consumindo a API.
+- Stream de vídeo ao vivo da câmera (RTSP → HLS) para visualização.
+- Heartbeat/health das câmeras (online/offline).
+
+**Fora do escopo (por ora):**
+
+- Cancela/cobrança/integração com meios de pagamento.
+- Multi-tenant / múltiplos estacionamentos em produção.
+- Treinamento de modelo próprio de OCR (usa YOLOv8 + PaddleOCR pré-treinados).
+- Alta disponibilidade / deploy gerenciado em nuvem (há um plano em
+  [`docs/cloud-provisioning.md`](docs/cloud-provisioning.md), não implantado).
+
+---
 
 ## Arquitetura
 
-O projeto segue **DDD (Domain-Driven Design)** com **Clean Architecture** em tres camadas:
-
 ```
-src/
-├── domain/              # Regras de negocio puras — zero dependencia externa
-│   └── shared/
-│       ├── entity.ts
-│       ├── aggregate-root.ts
-│       ├── value-object.ts
-│       ├── value-objects/
-│       │   └── unique-identifier.ts
-│       ├── events/
-│       │   ├── domain-event.ts
-│       │   └── domain-event-publisher.ts
-│       └── errors/
-│           └── domain-error.ts
-│
-├── app/                 # Orquestracao — use cases, DTOs, mappers
-│   ├── shared/
-│   │   └── use-case.ts
-│   ├── dto/
-│   │   └── types.ts       # Symbols Inversify (TYPES)
-│   ├── usecases/
-│   ├── services/
-│   ├── mappers/
-│   ├── events/
-│   ├── exceptions/
-│   └── tests/
-│       ├── in-memory-repositories/
-│       └── factories/
-│
-└── infra/               # Frameworks, drivers, adaptadores
-    ├── server/
-    │   └── index.ts       # Bootstrap Fastify + Swagger
-    ├── di/
-    │   ├── Container.ts   # Container Inversify principal
-    │   ├── Repositories.ts
-    │   ├── Services.ts
-    │   ├── Usecases.ts
-    │   ├── Controllers.ts
-    │   ├── Mappers.ts
-    │   └── test-di.ts     # Validacao do container
-    ├── controllers/
-    │   └── HealthController.ts
-    ├── env/
-    │   └── environment.ts # Validacao de env com Zod
-    └── database/
-        ├── Connection.ts  # Pool Kysely/PostgreSQL
-        ├── prisma/
-        │   └── schema.prisma
-        ├── kysely/
-        │   └── mappers/
-        └── types/         # Tipos gerados pelo prisma-kysely
+┌──────────────────────────┐         ┌────────────────────────────────────────┐
+│ Raspberry Pi (edge)      │         │ Servidor (Mac / PC)                      │
+│                          │  HTTP   │                                          │
+│ vehicle-service          │ ──────▶ │ recognition-service  (Docker)            │
+│  · captura (picamera2)   │ frames  │  · YOLOv8 (presença) + PaddleOCR (placa) │
+│  · orquestra o ciclo     │         │                                          │
+│  · publica eventos       │ ──────▶ │ parking  (Node/Fastify)                  │
+│  · stream RTSP + heartbeat│ eventos│  · domínio: vagas, sessões, câmeras       │
+└──────────┬───────────────┘         │  · API REST + eventos (RabbitMQ)         │
+           │ RTSP→HLS                │  · PostgreSQL                            │
+           ▼                         │                                          │
+     vídeo ao vivo  ◀─────────────── │ parking-manager-frontend  (React/Vite)   │
+                                     │  · dashboard: ocupação, câmeras, atividade│
+                                     └────────────────────────────────────────┘
 ```
 
-### Regras de dependencia
+Detalhes de topologia, portas, IPs e runbook completo:
+[`docs/arquitetura-local-runbook.md`](docs/arquitetura-local-runbook.md).
 
-As dependencias sempre apontam para dentro:
+---
+
+## Componentes
+
+| Serviço | Pasta | Stack | Responsabilidade |
+|---|---|---|---|
+| **Vehicle Service** | [`vehicle-service/`](vehicle-service/README.md) | Python, FastAPI, picamera2 | Captura imagem no Pi, consulta o reconhecimento, publica eventos e o stream |
+| **Recognition Service** | [`recognition-service/`](recognition-service/README.md) | Python, FastAPI, YOLOv8, PaddleOCR | Detecta veículo e lê a placa (OCR); roda em Docker |
+| **Parking (backend)** | [`parking/`](parking/README.md) | Node 20, Fastify, Kysely/Prisma, InversifyJS, PostgreSQL, RabbitMQ | Domínio do estacionamento, API REST, eventos e persistência |
+| **Parking Manager (frontend)** | [`parking-manager-frontend/`](parking-manager-frontend/README.md) | React 19, Vite, TypeScript, React Query, Tailwind | Dashboard web que consome a API |
+
+Cada subprojeto tem seu próprio README com instruções específicas.
+
+---
+
+## Fluxo end-to-end
 
 ```
-infra → app → domain
+Pi captura frame (a cada N segundos)
+  → POST recognition /recognition/frame-presence   (tem veículo? — YOLO)
+      → se sim: POST /recognition/spot             (lê a placa — OCR)
+  → vehicle publica eventos no parking:
+      POST /events  { vehicle.entered | spot.occupied | spot.released | vehicle.exited }
+        → parking publica no RabbitMQ + handlers de domínio
+        → persiste: parking_sessions, vehicles, parking_spots, activity_events
+  → heartbeat periódico: POST /cameras/{id}/heartbeat  (status online/offline)
+
+frontend consome a API:
+  GET /parking-lots/:id/map            (ocupação + vagas)
+  GET /parking-lots/:id/activity-*     (resumo do dia, feed em tempo real via SSE)
+  GET /parking-lots/:id/cameras        (status) + stream HLS ao vivo
 ```
 
-- `domain/` **NAO** importa de `app/` nem de `infra/`
-- `app/` **NAO** importa de `infra/`
-- `infra/` pode importar de qualquer camada
+---
 
-Essas regras sao enforced pelo **ESLint plugin DDD** (`eslint-ddd-plugin.mjs`).
+## Como executar
 
-### Injecao de Dependencia
+Passo a passo completo (subir banco/fila, recognition em Docker, backend,
+frontend e o serviço no Pi) está em
+**[`docs/arquitetura-local-runbook.md`](docs/arquitetura-local-runbook.md)**.
 
-O Inversify e configurado de forma modular em `src/infra/di/`:
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `Container.ts` | Composicao do container |
-| `Repositories.ts` | Bind de implementacoes de repositorio |
-| `Services.ts` | Bind de application services |
-| `Usecases.ts` | Bind de use cases |
-| `Controllers.ts` | Bind de controllers HTTP |
-| `Mappers.ts` | Bind de mappers de persistencia e resposta |
-
-Os symbols de injecao ficam em `src/app/dto/types.ts`.
-
-### Banco de Dados
-
-- **Prisma** gerencia schema e migrations
-- **prisma-kysely** gera tipos TypeScript a partir do schema Prisma
-- **Kysely** e usado como query builder type-safe nos repositorios
-- Tipos gerados ficam em `src/infra/database/types/types.ts`
-
-## Setup
-
-> Para ver todos os comandos que foram executados para montar o projeto do zero, consulte o [SETUP.md](SETUP.md).
-
-### Pre-requisitos
-
-- Node.js 20+
-- pnpm
-- Docker (para PostgreSQL)
-
-### Instalacao
+Resumo:
 
 ```bash
-pnpm install
+# 1. Banco + fila (em parking/)
+cd parking && docker compose up -d
+
+# 2. Recognition (Docker linux/amd64)
+cd ../recognition-service
+docker build --platform linux/amd64 -t recognition-service:local .
+docker run -d --name recognition --platform linux/amd64 -p 9000:9000 \
+  -v paddleocr-models:/root/.paddleocr recognition-service:local
+
+# 3. Backend
+cd ../parking && pnpm install && pnpm generate && pnpm migrate && pnpm dev   # :3000
+
+# 4. Frontend
+cd ../parking-manager-frontend && cp .env.example .env && pnpm install && pnpm dev  # :5173
+
+# 5. Vehicle service: roda no Raspberry Pi (ver vehicle-service/README e o runbook)
 ```
 
-### Banco de dados
+> O `recognition-service` **deve rodar em Docker (linux/amd64)** — o
+> `paddlepaddle` trava em inferência nativa no macOS Apple Silicon. Ver o runbook.
 
-```bash
-# Subir PostgreSQL
-docker compose up -d
+---
 
-# Copiar variaveis de ambiente
-cp .env.example .env
+## Estrutura do repositório
 
-# Rodar migrations
-pnpm migrate
-
-# Gerar tipos Kysely
-pnpm generate
+```
+.
+├── vehicle-service/           # captura no Pi (edge)
+├── recognition-service/       # detecção + OCR (Docker)
+├── parking/                   # backend de domínio (API + eventos + DB)
+├── parking-manager-frontend/  # dashboard web
+└── docs/
+    ├── arquitetura-local-runbook.md   # arquitetura real + runbook + troubleshooting
+    ├── cloud-provisioning.md          # plano de deploy em nuvem
+    └── recognition-deploy-patterns.md # padrões de produção do OCR
 ```
 
-### Desenvolvimento
+---
 
-```bash
-pnpm dev
-```
+## Hardware
 
-A API sobe em `http://localhost:3000` com documentacao Swagger em `/docs`.
+- **Raspberry Pi 4/CM4** (Raspberry Pi OS Bookworm 64-bit) — roda o `vehicle-service`.
+- **Raspberry Pi Camera Module 3 Wide** (sensor IMX708, captura 4608×2592).
+- **Servidor** (Mac/PC) — roda recognition (Docker), backend, banco/fila e frontend na mesma LAN.
 
-### Testes
+---
 
-```bash
-pnpm test              # Roda testes com coverage
-pnpm test:watch        # Watch mode
-pnpm test:ui           # Interface visual do Vitest
-pnpm test:di           # Valida resolucao do container Inversify
-```
+## Princípios de engenharia
 
-### Build
-
-```bash
-pnpm build             # Gera dist/index.js (ESM via tsup)
-pnpm start             # Roda em producao
-```
-
-### Qualidade
-
-```bash
-pnpm lint              # ESLint com regras DDD
-pnpm lint:fix          # Auto-fix
-pnpm typecheck         # Checagem de tipos
-pnpm pr                # Pipeline completo: test → lint → typecheck → build
-```
-
-## Variaveis de Ambiente
-
-| Variavel | Descricao | Default |
-|---|---|---|
-| `NODE_ENV` | Ambiente | `development` |
-| `PORT` | Porta do servidor | `3000` |
-| `DATABASE_URL` | Connection string PostgreSQL | — |
-| `DB_HOST` | Host do banco | — |
-| `DB_PORT` | Porta do banco | `5432` |
-| `DB_NAME` | Nome do banco | — |
-| `DB_USER` | Usuario do banco | — |
-| `DB_PASSWORD` | Senha do banco | — |
-| `DB_MAX_POOL_SIZE` | Tamanho maximo do pool | `10` |
+O código segue **DDD**, **Clean Architecture**, **SOLID** e **Object
+Calisthenics**: domínio independente de framework, dependências apontando para
+dentro, regras de negócio nas entidades/agregados e adapters isolando I/O.
