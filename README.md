@@ -151,22 +151,6 @@ cd ../parking-manager-frontend && cp .env.example .env && pnpm install && pnpm d
 
 ---
 
-## Estrutura do repositório
-
-```
-.
-├── vehicle-service/           # captura no Pi (edge)
-├── recognition-service/       # detecção + OCR (Docker)
-├── parking/                   # backend de domínio (API + eventos + DB)
-├── parking-manager-frontend/  # dashboard web
-└── docs/
-    ├── arquitetura-local-runbook.md   # arquitetura real + runbook + troubleshooting
-    ├── cloud-provisioning.md          # plano de deploy em nuvem
-    └── recognition-deploy-patterns.md # padrões de produção do OCR
-```
-
----
-
 ## Hardware
 
 - **Raspberry Pi 4/CM4** (Raspberry Pi OS Bookworm 64-bit) — roda o `vehicle-service`.
