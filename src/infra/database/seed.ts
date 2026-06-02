@@ -8,7 +8,6 @@ const SPOT_DEFINITIONS: ReadonlyArray<{
   column: number;
 }> = [
   { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', code: 'A', row: 1, column: 1 },
-  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', code: 'B', row: 1, column: 2 },
 ];
 
 async function seed(): Promise<void> {
@@ -20,9 +19,9 @@ async function seed(): Promise<void> {
     .insertInto('parking_lots')
     .values({
       id: parkingLotId,
-      name: 'Parking Lot Demo',
-      address: 'Rua Demo, 123',
-      total_capacity: 50,
+      name: 'Estacionamento Casa',
+      address: 'Garagem residencial',
+      total_capacity: 1,
       created_at: now,
       updated_at: now,
     })
