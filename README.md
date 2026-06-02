@@ -54,22 +54,39 @@ arquitetura de software desacoplada, testável e evolutiva.
 
 ## Arquitetura
 
+```mermaid
+flowchart LR
+    user(["Usuário"]):::done
+
+    subgraph pi["Raspberry Pi · edge"]
+        direction TB
+        vs["vehicle-service<br/>picamera2 · ciclo de captura"]:::done
+        mtx["MediaMTX<br/>RTSP → HLS"]:::done
+    end
+
+    subgraph server["Servidor · LAN"]
+        direction TB
+        rec["recognition-service<br/>Docker · YOLOv8 + PaddleOCR"]:::done
+        api["parking · backend<br/>Node/Fastify · API REST"]:::done
+        mq(["RabbitMQ"]):::done
+        db[("PostgreSQL")]:::done
+        fe["parking-manager-frontend<br/>React · Vite"]:::done
+    end
+
+    vs -->|"frames · HTTP"| rec
+    vs -->|"eventos · POST /events"| api
+    vs -->|"heartbeat"| api
+    vs -.->|"publish RTSP"| mtx
+    api <-->|"eventos"| mq
+    api --> db
+    fe -->|"REST + SSE"| api
+    fe -.->|"HLS · vídeo ao vivo"| mtx
+    user --> fe
+
+    classDef done fill:#bbf7d0,stroke:#22c55e,color:#064e3b
 ```
-┌──────────────────────────┐         ┌────────────────────────────────────────┐
-│ Raspberry Pi (edge)      │         │ Servidor (Mac / PC)                      │
-│                          │  HTTP   │                                          │
-│ vehicle-service          │ ──────▶ │ recognition-service  (Docker)            │
-│  · captura (picamera2)   │ frames  │  · YOLOv8 (presença) + PaddleOCR (placa) │
-│  · orquestra o ciclo     │         │                                          │
-│  · publica eventos       │ ──────▶ │ parking  (Node/Fastify)                  │
-│  · stream RTSP + heartbeat│ eventos│  · domínio: vagas, sessões, câmeras       │
-└──────────┬───────────────┘         │  · API REST + eventos (RabbitMQ)         │
-           │ RTSP→HLS                │  · PostgreSQL                            │
-           ▼                         │                                          │
-     vídeo ao vivo  ◀─────────────── │ parking-manager-frontend  (React/Vite)   │
-                                     │  · dashboard: ocupação, câmeras, atividade│
-                                     └────────────────────────────────────────┘
-```
+
+> Legenda: **verde** = implementado e validado. Linha tracejada = stream de vídeo (RTSP/HLS).
 
 Detalhes de topologia, portas, IPs e runbook completo:
 [`docs/arquitetura-local-runbook.md`](docs/arquitetura-local-runbook.md).
