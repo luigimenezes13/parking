@@ -23,6 +23,7 @@ Demonstrar, de ponta a ponta, um sistema de baixo custo capaz de:
    **Domain-Driven Design** e **Clean Architecture**.
 4. **Visualizar** a operação em tempo real (ocupação, stream ao vivo da câmera,
    histórico de atividade) num **dashboard web**.
+5. **Escalar** e continuar **mantenível**
 
 O objetivo acadêmico é mostrar a viabilidade técnica do LPR com hardware
 acessível (Raspberry Pi + câmera + um computador comum rodando os modelos) e uma
