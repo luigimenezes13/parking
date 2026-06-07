@@ -1,0 +1,23 @@
+# Reinstalado/rebuildado dentro da imagem
+node_modules
+dist
+coverage
+
+# Segredos e ruido local — nunca entram na imagem
+.env
+*.log
+.git
+.gitignore
+.vscode
+.claude
+
+# Artefatos de dev/teste que nao afetam runtime
+**/*.spec.ts
+vitest.config.ts
+vitest.config.integration.ts
+docker-compose.yml
+Dockerfile
+.dockerignore
+README.md
+SETUP.md
+docs
