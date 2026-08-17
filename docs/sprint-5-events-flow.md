@@ -542,8 +542,8 @@ Resultado validado em 2026-05-03 com fluxo realistic:
 
 ### Env vars
 ```
-DATABASE_URL=postgresql://parking:parking@localhost:5432/parking
-RABBITMQ_URL=amqp://guest:guest@localhost:5672
+DATABASE_URL=postgresql://parking:parking@localhost:5442/parking
+RABBITMQ_URL=amqp://guest:guest@localhost:5682
 RABBITMQ_RECOGNITION_EXCHANGE=recognition.events
 RABBITMQ_PREFETCH=10
 DEFAULT_PARKING_LOT_ID=11111111-1111-4111-8111-111111111111

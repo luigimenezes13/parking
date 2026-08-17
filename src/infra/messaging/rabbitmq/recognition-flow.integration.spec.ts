@@ -11,7 +11,7 @@ import {
 import { startRecognitionConsumers } from '@infra/messaging/rabbitmq/recognition-event-consumer.ts';
 
 const TEST_EXCHANGE = 'test.recognition.events';
-const RABBITMQ_URL = process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672';
+const RABBITMQ_URL = process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5682';
 
 interface Setup {
   connection: ChannelModel;
