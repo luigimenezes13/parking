@@ -58,7 +58,12 @@ const server = Fastify({
   ajv: { customOptions: { removeAdditional: false } },
 });
 
-await server.register(cors);
+// Sem `methods` explicito o preflight responde apenas GET,HEAD,POST e o
+// navegador bloqueia PATCH/DELETE — o dashboard perde atribuir motorista,
+// editar vaga e editar camera.
+await server.register(cors, {
+  methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+});
 await server.register(swagger, {
   openapi: {
     info: {
