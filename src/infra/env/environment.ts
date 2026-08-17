@@ -17,6 +17,10 @@ const environmentSchema = z.object({
   RABBITMQ_PREFETCH: z.coerce.number().default(10),
 
   DEFAULT_PARKING_LOT_ID: z.uuid(),
+
+  // Tolerancia entre a vaga ser liberada e a sessao ser encerrada, para o caso
+  // de o veiculo apenas ter deixado de ser detectado por alguns ciclos.
+  SESSION_EXIT_GRACE_MS: z.coerce.number().default(180_000),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

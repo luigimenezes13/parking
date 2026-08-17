@@ -14,6 +14,7 @@ import {
   InMemoryActivityBroadcaster,
 } from '@infra/realtime/activity-broadcaster.ts';
 import { OfflineCameraSweeper } from '@infra/jobs/offline-camera-sweeper.ts';
+import { ExitConfirmationSweeper } from '@infra/jobs/exit-confirmation-sweeper.ts';
 
 export function configureServices(container: Container): void {
   container
@@ -37,4 +38,5 @@ export function configureServices(container: Container): void {
     .inSingletonScope();
 
   container.bind<OfflineCameraSweeper>(OfflineCameraSweeper).toSelf().inSingletonScope();
+  container.bind<ExitConfirmationSweeper>(ExitConfirmationSweeper).toSelf().inSingletonScope();
 }

@@ -195,6 +195,47 @@ describe('ParkingSession.releaseSpot', () => {
     expect(session.isActive()).toBe(true);
   });
 
+  it('should let the vehicle park again after its spot was released', () => {
+    const session = makeActiveSession();
+    const firstSpot = makeParkingSpot();
+    session.assignSpot({ spot: firstSpot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
+    session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
+    session.pullDomainEvents();
+
+    const secondSpot = makeParkingSpot();
+    session.assignSpot({ spot: secondSpot, occupiedAt: new Date('2026-04-30T11:01:00Z') });
+
+    expect(session.isHoldingSpot()).toBe(true);
+    expect(session.spotReleasedAt()).toBeNull();
+    expect(secondSpot.isOccupied()).toBe(true);
+  });
+
+  it('should stop awaiting exit confirmation once the vehicle parks again', () => {
+    const session = makeActiveSession();
+    session.assignSpot({ spot: makeParkingSpot(), occupiedAt: new Date('2026-04-30T10:00:30Z') });
+    session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
+    expect(session.awaitsExitConfirmationSince()).not.toBeNull();
+
+    session.assignSpot({ spot: makeParkingSpot(), occupiedAt: new Date('2026-04-30T11:01:00Z') });
+
+    expect(session.awaitsExitConfirmationSince()).toBeNull();
+  });
+
+  it('should not free a spot taken by someone else when finishing a released session', () => {
+    const session = makeActiveSession();
+    const spot = makeParkingSpot();
+    session.assignSpot({ spot, occupiedAt: new Date('2026-04-30T10:00:30Z') });
+    session.releaseSpot({ releasedAt: new Date('2026-04-30T11:00:00Z') });
+    spot.occupyBySession();
+    session.pullDomainEvents();
+
+    session.finish({ exitAt: new Date('2026-04-30T11:05:00Z') });
+
+    expect(spot.isOccupied()).toBe(true);
+    const eventNames = session.pullDomainEvents().map((event) => event.eventName);
+    expect(eventNames).not.toContain('parking.session.spot-released');
+  });
+
   it('should emit SpotReleased as the only event of releaseSpot', () => {
     const session = makeActiveSession();
     session.assignSpot({ spot: makeParkingSpot(), occupiedAt: new Date('2026-04-30T10:00:30Z') });

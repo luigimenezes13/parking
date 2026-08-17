@@ -45,6 +45,7 @@ import { type VehicleExitedHandler } from '@app/handlers/recognition/vehicle-exi
 import { type ActivityRecorderAppService } from '@app/services/activity/activity-recorder.app-service.ts';
 import { type DomainEventBus } from '@infra/events/in-process-domain-event-bus.ts';
 import { OfflineCameraSweeper } from '@infra/jobs/offline-camera-sweeper.ts';
+import { ExitConfirmationSweeper } from '@infra/jobs/exit-confirmation-sweeper.ts';
 import { database } from '@infra/database/Connection.ts';
 
 const environment = loadEnvironment();
@@ -122,6 +123,9 @@ const unsubscribeActivityRecorder = domainEventBus.subscribe((event) => {
 const offlineCameraSweeper = container.get(OfflineCameraSweeper);
 offlineCameraSweeper.start();
 
+const exitConfirmationSweeper = container.get(ExitConfirmationSweeper);
+exitConfirmationSweeper.start({ graceAfterMs: environment.SESSION_EXIT_GRACE_MS });
+
 // TODO: add this to the DI
 RegisterController(server, container.get(HealthController));
 RegisterController(server, container.get(RecognitionEventsController));
@@ -142,6 +146,7 @@ async function shutdown(signal: string): Promise<void> {
   server.log.info({ signal }, 'shutdown.start');
   try {
     offlineCameraSweeper.stop();
+    exitConfirmationSweeper.stop();
     unsubscribeActivityRecorder();
     await server.close();
     await rabbitChannel.close().catch(() => undefined);

@@ -61,6 +61,21 @@ export class InMemoryParkingSessionRepository implements ParkingSessionRepositor
     return mostRecent;
   }
 
+  async findAwaitingExitConfirmation(window: { releasedBefore: Date }): Promise<ParkingSession[]> {
+    const result: ParkingSession[] = [];
+    for (const session of this.sessions.values()) {
+      const releasedAt = session.awaitsExitConfirmationSince();
+      if (releasedAt && releasedAt.getTime() <= window.releasedBefore.getTime()) {
+        result.push(session);
+      }
+    }
+    result.sort(
+      (left, right) =>
+        (left.spotReleasedAt()?.getTime() ?? 0) - (right.spotReleasedAt()?.getTime() ?? 0),
+    );
+    return result;
+  }
+
   async findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]> {
     const result: ParkingSession[] = [];
     for (const session of this.sessions.values()) {

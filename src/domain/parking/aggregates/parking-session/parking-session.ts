@@ -64,12 +64,13 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
   assignSpot(assignment: { spot: ParkingSpot; occupiedAt: Date }): void {
     this.ensureActive();
 
-    if (this.properties.spot !== null) {
+    if (this.isHoldingSpot()) {
       throw new SessionAlreadyHasSpotError(this.identifier.value());
     }
 
     assignment.spot.occupyBySession();
     this.properties.spot = assignment.spot;
+    this.properties.spotReleasedAt = null;
 
     this.addDomainEvent(spotOccupiedMapper.toEvent(this, { occupiedAt: assignment.occupiedAt }));
   }
@@ -77,14 +78,28 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
   releaseSpot(release: { releasedAt: Date }): void {
     this.ensureActive();
 
-    if (this.properties.spot === null) {
+    if (!this.isHoldingSpot()) {
       throw new SessionWithoutSpotError(this.identifier.value());
     }
 
-    this.properties.spot.releaseBySession();
+    this.properties.spot?.releaseBySession();
     this.properties.spotReleasedAt = new Date(release.releasedAt.getTime());
 
     this.addDomainEvent(spotReleasedMapper.toEvent(this, { releasedAt: release.releasedAt }));
+  }
+
+  // A vaga fica registrada na sessao apos a liberacao para preservar o historico,
+  // por isso "ocupar" depende de nao haver liberacao mais recente.
+  isHoldingSpot(): boolean {
+    return this.properties.spot !== null && this.properties.spotReleasedAt === null;
+  }
+
+  awaitsExitConfirmationSince(): Date | null {
+    if (this.properties.status.isFinished() || this.isHoldingSpot()) {
+      return null;
+    }
+
+    return this.spotReleasedAt();
   }
 
   finish(closure: { exitAt: Date }): void {
@@ -92,7 +107,11 @@ export class ParkingSession extends AggregateRoot<ParkingSessionProperties> {
       throw new SessionAlreadyFinishedError(this.identifier.value());
     }
 
-    if (this.properties.spot !== null && this.properties.spot.isOccupied()) {
+    if (
+      this.isHoldingSpot() &&
+      this.properties.spot !== null &&
+      this.properties.spot.isOccupied()
+    ) {
       this.properties.spot.releaseBySession();
       this.properties.spotReleasedAt = new Date(closure.exitAt.getTime());
       this.addDomainEvent(spotReleasedMapper.toEvent(this, { releasedAt: closure.exitAt }));

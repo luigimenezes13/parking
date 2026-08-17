@@ -110,6 +110,16 @@ export class KyselyParkingSessionRepository implements ParkingSessionRepository 
     );
   }
 
+  async findAwaitingExitConfirmation(window: { releasedBefore: Date }): Promise<ParkingSession[]> {
+    return this.queryHydratedSessions((trx) =>
+      this.baseSelect(trx)
+        .where('s.status', '=', 'ACTIVE')
+        .where('s.spot_released_at', 'is not', null)
+        .where('s.spot_released_at', '<=', window.releasedBefore)
+        .orderBy('s.spot_released_at', 'asc'),
+    );
+  }
+
   async findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]> {
     return this.queryHydratedSessions((trx) =>
       this.baseSelect(trx)

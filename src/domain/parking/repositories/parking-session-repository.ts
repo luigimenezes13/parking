@@ -10,5 +10,6 @@ export interface ParkingSessionRepository {
   findOldestPendingVehicle(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null>;
   findMostRecentActive(parkingLotId: UniqueIdentifier): Promise<ParkingSession | null>;
   findActiveByLot(parkingLotId: UniqueIdentifier): Promise<ParkingSession[]>;
+  findAwaitingExitConfirmation(window: { releasedBefore: Date }): Promise<ParkingSession[]>;
   findByVehicleId(vehicleId: UniqueIdentifier): Promise<ParkingSession[]>;
 }
