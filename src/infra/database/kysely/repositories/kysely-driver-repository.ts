@@ -42,6 +42,24 @@ export class KyselyDriverRepository implements DriverRepository {
     return row ? this.mapper.toDomain(row) : null;
   }
 
+  async findByIds(identifiers: UniqueIdentifier[]): Promise<Driver[]> {
+    if (identifiers.length === 0) {
+      return [];
+    }
+
+    const rows = await this.database
+      .selectFrom('drivers')
+      .selectAll()
+      .where(
+        'id',
+        'in',
+        identifiers.map((identifier) => identifier.value()),
+      )
+      .execute();
+
+    return rows.map((row) => this.mapper.toDomain(row));
+  }
+
   async findByCnh(cnh: string): Promise<Driver | null> {
     const row = await this.database
       .selectFrom('drivers')

@@ -7,6 +7,7 @@ import { enterSession } from '@domain/parking/__tests__/factories/parking-sessio
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { InMemoryParkingSpotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-spot-repository.ts';
 import { InMemoryParkingSessionRepository } from '@app/tests/in-memory-repositories/in-memory-parking-session-repository.ts';
+import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { GetParkingLotMapUseCase } from '@app/usecases/parking-lot/get-parking-lot-map-usecase.ts';
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 
@@ -14,6 +15,7 @@ interface Setup {
   parkingLots: InMemoryParkingLotRepository;
   spots: InMemoryParkingSpotRepository;
   sessions: InMemoryParkingSessionRepository;
+  drivers: InMemoryDriverRepository;
   usecase: GetParkingLotMapUseCase;
 }
 
@@ -21,8 +23,9 @@ async function makeSetup(): Promise<Setup> {
   const parkingLots = new InMemoryParkingLotRepository();
   const spots = new InMemoryParkingSpotRepository();
   const sessions = new InMemoryParkingSessionRepository();
-  const usecase = new GetParkingLotMapUseCase(parkingLots, spots, sessions);
-  return { parkingLots, spots, sessions, usecase };
+  const drivers = new InMemoryDriverRepository();
+  const usecase = new GetParkingLotMapUseCase(parkingLots, spots, sessions, drivers);
+  return { parkingLots, spots, sessions, drivers, usecase };
 }
 
 describe('GetParkingLotMapUseCase', () => {

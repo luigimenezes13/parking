@@ -6,14 +6,22 @@ import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier
 import { type ParkingLot } from '@domain/parking/entities/parking-lot.ts';
 import { type ParkingSpot } from '@domain/parking/entities/parking-spot.ts';
 import { type ParkingSession } from '@domain/parking/aggregates/parking-session/parking-session.ts';
+import { type Driver } from '@domain/parking/entities/driver.ts';
 import { type ParkingLotRepository } from '@domain/parking/repositories/parking-lot-repository.ts';
 import { type ParkingSpotRepository } from '@domain/parking/repositories/parking-spot-repository.ts';
 import { type ParkingSessionRepository } from '@domain/parking/repositories/parking-session-repository.ts';
+import { type DriverRepository } from '@domain/parking/repositories/driver-repository.ts';
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
 
 export interface GetParkingLotMapInput {
   parkingLotId: string;
   now?: Date;
+}
+
+interface OccupancySnapshot {
+  sessionsBySpotId: Map<string, ParkingSession>;
+  driversById: Map<string, Driver>;
+  now: Date;
 }
 
 export interface ParkingLotMapView {
@@ -55,6 +63,9 @@ export interface ParkingLotMapActiveSession {
   vehicleLicensePlate: string | null;
   vehicleModel: string | null;
   vehicleColor: string | null;
+  driverId: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
   entryAt: Date;
   durationMinutes: number;
 }
@@ -64,15 +75,18 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
   private readonly parkingLots: ParkingLotRepository;
   private readonly spots: ParkingSpotRepository;
   private readonly sessions: ParkingSessionRepository;
+  private readonly drivers: DriverRepository;
 
   constructor(
     @inject(TYPES.ParkingLotRepository) parkingLots: ParkingLotRepository,
     @inject(TYPES.ParkingSpotRepository) spots: ParkingSpotRepository,
     @inject(TYPES.ParkingSessionRepository) sessions: ParkingSessionRepository,
+    @inject(TYPES.DriverRepository) drivers: DriverRepository,
   ) {
     this.parkingLots = parkingLots;
     this.spots = spots;
     this.sessions = sessions;
+    this.drivers = drivers;
   }
 
   async execute(input: GetParkingLotMapInput): Promise<ParkingLotMapView> {
@@ -87,9 +101,12 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
       this.sessions.findActiveByLot(parkingLotId),
     ]);
 
-    const sessionsBySpotId = this.indexSessionsBySpotId(sessions);
-    const now = input.now ?? new Date();
-    const floors = this.groupSpotsByFloor(spots, sessionsBySpotId, now);
+    const snapshot: OccupancySnapshot = {
+      sessionsBySpotId: this.indexSessionsBySpotId(sessions),
+      driversById: await this.indexDriversOf(sessions),
+      now: input.now ?? new Date(),
+    };
+    const floors = this.groupSpotsByFloor(spots, snapshot);
     const occupancy = this.computeOccupancy(spots);
 
     return {
@@ -119,10 +136,22 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
     return map;
   }
 
+  private async indexDriversOf(sessions: ParkingSession[]): Promise<Map<string, Driver>> {
+    const driverIds = new Map<string, UniqueIdentifier>();
+    for (const session of sessions) {
+      const driverId = session.vehicle()?.driverId();
+      if (driverId) {
+        driverIds.set(driverId.value(), driverId);
+      }
+    }
+
+    const drivers = await this.drivers.findByIds(Array.from(driverIds.values()));
+    return new Map(drivers.map((driver) => [driver.id().value(), driver]));
+  }
+
   private groupSpotsByFloor(
     spots: ParkingSpot[],
-    sessionsBySpotId: Map<string, ParkingSession>,
-    now: Date,
+    snapshot: OccupancySnapshot,
   ): ParkingLotMapFloor[] {
     const floorBuckets = new Map<number, ParkingSpot[]>();
     for (const spot of spots) {
@@ -133,7 +162,7 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
 
     const floors: ParkingLotMapFloor[] = [];
     for (const [floor, floorSpots] of floorBuckets) {
-      floors.push(this.buildFloorView(floor, floorSpots, sessionsBySpotId, now));
+      floors.push(this.buildFloorView(floor, floorSpots, snapshot));
     }
     floors.sort((left, right) => left.floor - right.floor);
     return floors;
@@ -142,8 +171,7 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
   private buildFloorView(
     floor: number,
     floorSpots: ParkingSpot[],
-    sessionsBySpotId: Map<string, ParkingSession>,
-    now: Date,
+    snapshot: OccupancySnapshot,
   ): ParkingLotMapFloor {
     const rows = floorSpots.reduce((max, spot) => Math.max(max, spot.row()), 0);
     const columns = floorSpots.reduce((max, spot) => Math.max(max, spot.column()), 0);
@@ -151,7 +179,9 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
     const spotViews = floorSpots
       .slice()
       .sort((left, right) => left.row() - right.row() || left.column() - right.column())
-      .map((spot) => this.toSpotView(spot, sessionsBySpotId.get(spot.id().value()) ?? null, now));
+      .map((spot) =>
+        this.toSpotView(spot, snapshot.sessionsBySpotId.get(spot.id().value()) ?? null, snapshot),
+      );
 
     return {
       floor,
@@ -163,7 +193,7 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
   private toSpotView(
     spot: ParkingSpot,
     session: ParkingSession | null,
-    now: Date,
+    snapshot: OccupancySnapshot,
   ): ParkingLotMapSpot {
     return {
       id: spot.id().value(),
@@ -173,14 +203,19 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
       isCovered: spot.isCovered(),
       spotType: spot.spotType().serialize(),
       status: spot.status().serialize(),
-      activeSession: session ? this.toActiveSessionView(session, now) : null,
+      activeSession: session ? this.toActiveSessionView(session, snapshot) : null,
     };
   }
 
-  private toActiveSessionView(session: ParkingSession, now: Date): ParkingLotMapActiveSession {
+  private toActiveSessionView(
+    session: ParkingSession,
+    snapshot: OccupancySnapshot,
+  ): ParkingLotMapActiveSession {
     const vehicle = session.vehicle();
     const entryAt = session.entryAt();
-    const durationMinutes = Math.max(0, Math.floor((now.getTime() - entryAt.getTime()) / 60000));
+    const elapsed = snapshot.now.getTime() - entryAt.getTime();
+    const driverId = vehicle?.driverId() ?? null;
+    const driver = driverId ? snapshot.driversById.get(driverId.value()) : undefined;
 
     return {
       sessionId: session.id().value(),
@@ -188,8 +223,11 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
       vehicleLicensePlate: vehicle?.licensePlate().value() ?? null,
       vehicleModel: vehicle?.model() ?? null,
       vehicleColor: vehicle?.color() ?? null,
+      driverId: driverId?.value() ?? null,
+      driverName: driver?.name() ?? null,
+      driverPhone: driver?.phone() ?? null,
       entryAt,
-      durationMinutes,
+      durationMinutes: Math.max(0, Math.floor(elapsed / 60000)),
     };
   }
 

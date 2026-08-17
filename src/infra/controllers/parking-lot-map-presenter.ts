@@ -11,6 +11,9 @@ export interface ParkingLotMapActiveSessionResponse {
   vehicleLicensePlate: string | null;
   vehicleModel: string | null;
   vehicleColor: string | null;
+  driverId: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
   entryAt: string;
   durationMinutes: number;
 }
@@ -78,6 +81,9 @@ function toActiveSessionResponse(
     vehicleLicensePlate: session.vehicleLicensePlate,
     vehicleModel: session.vehicleModel,
     vehicleColor: session.vehicleColor,
+    driverId: session.driverId,
+    driverName: session.driverName,
+    driverPhone: session.driverPhone,
     entryAt: session.entryAt.toISOString(),
     durationMinutes: session.durationMinutes,
   };
