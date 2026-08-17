@@ -19,6 +19,10 @@ export interface DomainEventToActivityMapping {
 
 const MAPPINGS: ReadonlyArray<DomainEventToActivityMapping> = [
   {
+    eventName: 'parking.vehicle.registered',
+    type: 'VEHICLE_REGISTERED',
+  },
+  {
     eventName: 'parking.session.vehicle-entered',
     type: 'VEHICLE_ENTERED',
     occurredAt: (p) => coerceDate(p.entryAt),

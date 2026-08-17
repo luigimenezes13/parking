@@ -6,6 +6,7 @@ import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.t
 import { InMemoryDriverRepository } from '@app/tests/in-memory-repositories/in-memory-driver-repository.ts';
 import { InMemoryParkingLotRepository } from '@app/tests/in-memory-repositories/in-memory-parking-lot-repository.ts';
 import { InMemoryVehicleRepository } from '@app/tests/in-memory-repositories/in-memory-vehicle-repository.ts';
+import { InMemoryDomainEventPublisher } from '@app/tests/factories/in-memory-domain-event-publisher.ts';
 import { RegisterVehicleUseCase } from '@app/usecases/vehicle/register-vehicle-usecase.ts';
 import { RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-vehicle-input.ts';
 import { ParkingLotNotFoundError } from '@app/exceptions/parking-lot/parking-lot-not-found-error.ts';
@@ -19,6 +20,7 @@ interface Setup {
   vehicles: InMemoryVehicleRepository;
   drivers: InMemoryDriverRepository;
   parkingLots: InMemoryParkingLotRepository;
+  publisher: InMemoryDomainEventPublisher;
   usecase: RegisterVehicleUseCase;
   lot: ParkingLot;
   driver: Driver;
@@ -35,9 +37,10 @@ async function makeSetup(): Promise<Setup> {
   const driver = makeDriver({ cnh: '11111111111', name: 'Maria', email: 'maria@example.com' });
   await drivers.save(driver);
 
-  const usecase = new RegisterVehicleUseCase(vehicles, drivers, parkingLots);
+  const publisher = new InMemoryDomainEventPublisher();
+  const usecase = new RegisterVehicleUseCase(vehicles, drivers, parkingLots, publisher);
 
-  return { vehicles, drivers, parkingLots, usecase, lot, driver };
+  return { vehicles, drivers, parkingLots, publisher, usecase, lot, driver };
 }
 
 describe('RegisterVehicleUseCase', () => {
@@ -62,6 +65,19 @@ describe('RegisterVehicleUseCase', () => {
     expect(result.vehicleId).toBeDefined();
     const stored = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('ABC1D23'));
     expect(stored?.driverId()?.equals(setup.driver.id())).toBe(true);
+  });
+
+  it('publishes vehicle registered announcing whether it has a driver', async () => {
+    await setup.usecase.execute(
+      new RegisterVehicleRequest({
+        parkingLotId: setup.lot.id().value(),
+        licensePlate: 'JKL4M56',
+      }),
+    );
+
+    const published = setup.publisher.pull();
+    const registered = published.find((event) => event.eventName === 'parking.vehicle.registered');
+    expect(registered?.payload).toMatchObject({ licensePlate: 'JKL4M56', hasDriver: false });
   });
 
   it('allows registering without a driver (anonymous)', async () => {

@@ -27,6 +27,7 @@ enum CameraStatus {
 }
 
 enum ActivityType {
+  VEHICLE_REGISTERED
   VEHICLE_ENTERED
   SPOT_OCCUPIED
   SPOT_RELEASED

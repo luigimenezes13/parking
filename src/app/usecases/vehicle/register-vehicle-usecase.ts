@@ -6,6 +6,7 @@ import { type RegisterVehicleRequest } from '@app/dto/inputs/vehicle/register-ve
 import { UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
 import { Vehicle } from '@domain/parking/entities/vehicle.ts';
+import { type DomainEventPublisher } from '@domain/shared/events/domain-event-publisher.ts';
 import { type DriverRepository } from '@domain/parking/repositories/driver-repository.ts';
 import { type ParkingLotRepository } from '@domain/parking/repositories/parking-lot-repository.ts';
 import { type VehicleRepository } from '@domain/parking/repositories/vehicle-repository.ts';
@@ -25,15 +26,18 @@ export class RegisterVehicleUseCase implements UseCase<
   private readonly vehicles: VehicleRepository;
   private readonly drivers: DriverRepository;
   private readonly parkingLots: ParkingLotRepository;
+  private readonly publisher: DomainEventPublisher;
 
   constructor(
     @inject(TYPES.VehicleRepository) vehicles: VehicleRepository,
     @inject(TYPES.DriverRepository) drivers: DriverRepository,
     @inject(TYPES.ParkingLotRepository) parkingLots: ParkingLotRepository,
+    @inject(TYPES.DomainEventPublisher) publisher: DomainEventPublisher,
   ) {
     this.vehicles = vehicles;
     this.drivers = drivers;
     this.parkingLots = parkingLots;
+    this.publisher = publisher;
   }
 
   async execute(input: RegisterVehicleRequest): Promise<RegisterVehicleOutput> {
@@ -76,6 +80,7 @@ export class RegisterVehicleUseCase implements UseCase<
     });
 
     await this.vehicles.save(vehicle);
+    await this.publisher.publish(vehicle.pullDomainEvents());
 
     return { vehicleId: vehicle.id().value() };
   }

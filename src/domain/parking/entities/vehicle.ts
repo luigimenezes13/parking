@@ -1,6 +1,7 @@
-import { Entity } from '@domain/shared/entity.ts';
+import { AggregateRoot } from '@domain/shared/aggregate-root.ts';
 import { type UniqueIdentifier } from '@domain/shared/value-objects/unique-identifier.ts';
 import { type LicensePlateVO } from '@domain/parking/value-objects/license-plate-vo.ts';
+import { createVehicleRegistered } from '@domain/parking/events/vehicle-registered.ts';
 import { EntityAlreadyDeactivatedError } from '@domain/parking/errors/entity-already-deactivated.ts';
 
 export interface VehicleProperties {
@@ -19,13 +20,15 @@ export interface VehicleAppearance {
   color: string | null;
 }
 
-export class Vehicle extends Entity<VehicleProperties> {
+export class Vehicle extends AggregateRoot<VehicleProperties> {
   constructor(properties: VehicleProperties, identifier?: UniqueIdentifier) {
     super({ ...properties, deactivatedAt: properties.deactivatedAt ?? null }, identifier);
   }
 
   static register(properties: Omit<VehicleProperties, 'deactivatedAt'>): Vehicle {
-    return new Vehicle({ ...properties, deactivatedAt: null });
+    const vehicle = new Vehicle({ ...properties, deactivatedAt: null });
+    vehicle.announceRegistration();
+    return vehicle;
   }
 
   static registerAnonymous(properties: {
@@ -35,7 +38,7 @@ export class Vehicle extends Entity<VehicleProperties> {
     model?: string | null;
     color?: string | null;
   }): Vehicle {
-    return new Vehicle({
+    const vehicle = new Vehicle({
       driverId: null,
       parkingLotId: properties.parkingLotId,
       licensePlate: properties.licensePlate,
@@ -44,6 +47,19 @@ export class Vehicle extends Entity<VehicleProperties> {
       color: properties.color ?? null,
       deactivatedAt: null,
     });
+    vehicle.announceRegistration();
+    return vehicle;
+  }
+
+  private announceRegistration(): void {
+    this.addDomainEvent(
+      createVehicleRegistered({
+        vehicleId: this.identifier.value(),
+        parkingLotId: this.properties.parkingLotId.value(),
+        licensePlate: this.properties.licensePlate.value(),
+        hasDriver: this.hasDriver(),
+      }),
+    );
   }
 
   transferOwnershipTo(newDriverId: UniqueIdentifier): void {

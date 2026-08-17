@@ -41,6 +41,7 @@ export class ForcePlateSessionUseCase implements UseCase<ForcePlateSessionReques
     const licensePlate = LicensePlateVO.from(plate);
     const vehicle = await this.resolveOrCreateVehicle(licensePlate, session.parkingLotId());
     await this.vehicles.save(vehicle);
+    await this.publisher.publish(vehicle.pullDomainEvents());
 
     session.assignVehicle({ vehicle });
     await this.sessions.save(session);

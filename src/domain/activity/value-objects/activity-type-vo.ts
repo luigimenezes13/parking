@@ -2,6 +2,7 @@ import { ValueObject } from '@domain/shared/value-object.ts';
 import { DomainError } from '@domain/shared/errors/domain-error.ts';
 
 export type ActivityTypeValue =
+  | 'VEHICLE_REGISTERED'
   | 'VEHICLE_ENTERED'
   | 'SPOT_OCCUPIED'
   | 'SPOT_RELEASED'
@@ -16,6 +17,7 @@ export type ActivityTypeValue =
   | 'CAMERA_OFFLINE';
 
 const ALL_TYPES: ReadonlyArray<ActivityTypeValue> = [
+  'VEHICLE_REGISTERED',
   'VEHICLE_ENTERED',
   'SPOT_OCCUPIED',
   'SPOT_RELEASED',

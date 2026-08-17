@@ -12,6 +12,7 @@ export const CameraStatus = {
 } as const;
 export type CameraStatus = (typeof CameraStatus)[keyof typeof CameraStatus];
 export const ActivityType = {
+    VEHICLE_REGISTERED: "VEHICLE_REGISTERED",
     VEHICLE_ENTERED: "VEHICLE_ENTERED",
     SPOT_OCCUPIED: "SPOT_OCCUPIED",
     SPOT_RELEASED: "SPOT_RELEASED",

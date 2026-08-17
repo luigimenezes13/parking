@@ -62,6 +62,7 @@ export class RegisterVehicleEntryAppService implements AppService<
 
     const vehicle = await this.resolveOrCreateVehicle(licensePlate, parkingLotId);
     await this.vehicles.save(vehicle);
+    await this.publisher.publish(vehicle.pullDomainEvents());
 
     const session = ParkingSession.enter({ parkingLotId, vehicle, entryAt: input.entryAt });
     await this.sessions.save(session);

@@ -55,14 +55,34 @@ describe('RegisterVehicleEntryAppService', () => {
     expect(vehicle?.driverId()).toBeNull();
   });
 
-  it('should publish VehicleEntered and SessionStarted domain events', async () => {
+  it('should publish VehicleRegistered, VehicleEntered and SessionStarted domain events', async () => {
     await setup.service.execute({
       plate: 'ABC1D23',
       entryAt: new Date('2026-04-30T10:00:00Z'),
     });
 
     const eventNames = setup.publisher.published.map((event) => event.eventName);
-    expect(eventNames).toEqual(['parking.session.vehicle-entered', 'parking.session.started']);
+    expect(eventNames).toEqual([
+      'parking.vehicle.registered',
+      'parking.session.vehicle-entered',
+      'parking.session.started',
+    ]);
+  });
+
+  it('should not announce a registration when the vehicle already exists', async () => {
+    await setup.service.execute({
+      plate: 'ABC1D23',
+      entryAt: new Date('2026-04-30T10:00:00Z'),
+    });
+    setup.publisher.pull();
+
+    await setup.service.execute({
+      plate: 'ABC1D23',
+      entryAt: new Date('2026-04-30T12:00:00Z'),
+    });
+
+    const eventNames = setup.publisher.published.map((event) => event.eventName);
+    expect(eventNames).not.toContain('parking.vehicle.registered');
   });
 
   it('should discard a duplicate vehicle.entered when there is already an active session', async () => {

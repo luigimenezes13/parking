@@ -54,7 +54,11 @@ describe('ForcePlateSessionUseCase', () => {
     expect(updated.licensePlate()?.value()).toBe('ABC1D23');
     const stored = await setup.vehicles.findByLicensePlate(LicensePlateVO.from('ABC1D23'));
     expect(stored).not.toBeNull();
-    expect(setup.publisher.published).toEqual([]);
+    const eventNames = setup.publisher.published.map((event) => event.eventName);
+    expect(eventNames).toEqual([
+      'parking.vehicle.registered',
+      'parking.manual.force-plate-performed',
+    ]);
   });
 
   it('reuses an existing vehicle when the plate is already registered', async () => {
