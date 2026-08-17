@@ -13,6 +13,7 @@ export interface ParkingLotMapActiveSessionResponse {
   vehicleColor: string | null;
   driverId: string | null;
   driverName: string | null;
+  driverEmail: string | null;
   driverPhone: string | null;
   entryAt: string;
   durationMinutes: number;
@@ -83,6 +84,7 @@ function toActiveSessionResponse(
     vehicleColor: session.vehicleColor,
     driverId: session.driverId,
     driverName: session.driverName,
+    driverEmail: session.driverEmail,
     driverPhone: session.driverPhone,
     entryAt: session.entryAt.toISOString(),
     durationMinutes: session.durationMinutes,

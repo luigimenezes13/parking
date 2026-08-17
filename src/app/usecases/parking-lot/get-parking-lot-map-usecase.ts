@@ -65,6 +65,7 @@ export interface ParkingLotMapActiveSession {
   vehicleColor: string | null;
   driverId: string | null;
   driverName: string | null;
+  driverEmail: string | null;
   driverPhone: string | null;
   entryAt: Date;
   durationMinutes: number;
@@ -225,6 +226,7 @@ export class GetParkingLotMapUseCase implements UseCase<GetParkingLotMapInput, P
       vehicleColor: vehicle?.color() ?? null,
       driverId: driverId?.value() ?? null,
       driverName: driver?.name() ?? null,
+      driverEmail: driver?.email() ?? null,
       driverPhone: driver?.phone() ?? null,
       entryAt,
       durationMinutes: Math.max(0, Math.floor(elapsed / 60000)),
