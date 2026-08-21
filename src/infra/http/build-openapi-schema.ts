@@ -46,8 +46,56 @@ export function buildOpenApiSchema(input: OpenApiBuildInput): Record<string, unk
 }
 
 function toJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return z.toJSONSchema(schema, { target: 'draft-7', unrepresentable: 'any' }) as Record<
+  const generated = z.toJSONSchema(schema, { target: 'draft-7', unrepresentable: 'any' }) as Record<
     string,
     unknown
   >;
+
+  return collapseNullableUnions(generated) as Record<string, unknown>;
+}
+
+// O Zod expressa `.nullable()` como `anyOf: [{type: X}, {type: 'null'}]`. O Ajv
+// do Fastify coage tipos e, ao testar a primeira alternativa, converte `null`
+// em `""` — o valor chega mutilado ao handler. Declarando `type: [X, 'null']`
+// o `null` ja casa com um tipo aceito e nada e coagido.
+function collapseNullableUnions(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map(collapseNullableUnions);
+  }
+  if (node === null || typeof node !== 'object') {
+    return node;
+  }
+
+  const entries = Object.entries(node as Record<string, unknown>).map(([key, value]) => [
+    key,
+    collapseNullableUnions(value),
+  ]);
+  const collapsed = Object.fromEntries(entries) as Record<string, unknown>;
+  const nullable = asNullableUnion(collapsed.anyOf);
+
+  if (!nullable) {
+    return collapsed;
+  }
+
+  const { anyOf: _discarded, ...rest } = collapsed;
+  return { ...nullable, ...rest };
+}
+
+function asNullableUnion(anyOf: unknown): Record<string, unknown> | null {
+  if (!Array.isArray(anyOf) || anyOf.length !== 2) {
+    return null;
+  }
+
+  const branches = anyOf as Record<string, unknown>[];
+  const nullBranch = branches.find((branch) => branch?.type === 'null');
+  const valueBranch = branches.find((branch) => branch?.type !== 'null');
+
+  if (!nullBranch || !valueBranch || Object.keys(nullBranch).length !== 1) {
+    return null;
+  }
+  if (typeof valueBranch.type !== 'string') {
+    return null;
+  }
+
+  return { ...valueBranch, type: [valueBranch.type, 'null'] };
 }
